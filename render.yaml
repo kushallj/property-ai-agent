@@ -37,5 +37,11 @@ services:
         sync: false
       - key: WHATSAPP_VERIFY_TOKEN
         generateValue: true
+      - key: WHATSAPP_BUSINESS_ACCOUNT_ID
+        sync: false              # lets the campaign page list your approved templates
+      - key: WHATSAPP_DAILY_LIMIT
+        value: "250"             # raise to match your number's messaging limit in WhatsApp Manager
+      - key: CAMPAIGN_HOURS
+        value: "9-21"
       - key: ROUTINES_ENABLED
         value: "1"

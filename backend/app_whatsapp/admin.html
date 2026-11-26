@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>WhatsApp Campaigns</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#17223a;--muted:#5f6a7c;--line:#e0e5ec;--brand:#0e5e5a;--brand-soft:#e2f1ef;--warn:#b86e0b;--warn-soft:#fcf0dc;--bad:#c23d28;--bad-soft:#fbe6e2;--ok:#1c8556;--ok-soft:#e0f3ea}
+@media (prefers-color-scheme:dark){:root{--bg:#0e131a;--card:#161d26;--ink:#e6ebf2;--muted:#98a3b5;--line:#27313d;--brand:#47b8af;--brand-soft:#173634;--warn:#f0a743;--warn-soft:#3a2b14;--bad:#f0715b;--bad-soft:#3d1f1a;--ok:#4cc48c;--ok-soft:#14322a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:16px}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+label{display:grid;gap:4px;font-size:12px;color:var(--muted);flex:1;min-width:180px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:70px}
+button{font:inherit;font-weight:600;border:0;border-radius:8px;padding:8px 14px;background:var(--brand);color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.danger{background:var(--bad)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.muted{color:var(--muted)}.small{font-size:12px}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--brand-soft);color:var(--brand)}
+.pill.paused,.pill.draft{background:var(--warn-soft);color:var(--warn)}.pill.cancelled{background:var(--bad-soft);color:var(--bad)}.pill.completed{background:var(--ok-soft);color:var(--ok)}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:8px 10px}.stat b{display:block;font-size:18px}
+.bar{height:8px;background:var(--bg);border-radius:99px;overflow:hidden;border:1px solid var(--line)}.bar i{display:block;height:100%;background:var(--brand)}
+.problems{font-size:12.5px;color:var(--bad);margin:0;padding-left:18px}
+.sample{font-size:13px;background:var(--bg);border-radius:8px;padding:8px 10px}
+.camp{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
+.camp:first-child{border-top:0;padding-top:0}
+.msg{padding:10px 12px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}.msg.bad{background:var(--bad-soft);color:var(--bad)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <h1>WhatsApp Campaigns</h1>
+    <span class="muted small" id="limits"></span>
+  </div>
+
+  <div class="card" id="keyCard">
+    <div class="row">
+      <label for="key">Admin key (ADMIN_API_KEY from your hosting settings)<input id="key" type="password" autocomplete="off"></label>
+      <button id="connect">Connect</button>
+    </div>
+    <div id="keyMsg" class="msg bad" hidden></div>
+  </div>
+
+  <div id="app" hidden style="display:grid;gap:16px">
+    <div class="card">
+      <h2>New campaign</h2>
+      <p class="muted small" style="margin:0">Only send to people who agreed to hear from you on WhatsApp. Messages use a template approved in WhatsApp Manager. Anyone who replies STOP is never messaged again.</p>
+      <div class="row">
+        <label for="cName">Campaign name<input id="cName" placeholder="Baner launch, Dec"></label>
+        <label for="cFile">Contacts (CSV with a phone column)<input id="cFile" type="file" accept=".csv,text/csv"></label>
+      </div>
+      <div class="small muted" id="cols"></div>
+      <div class="row">
+        <label for="cTemplate">Template<select id="cTemplate"></select><input id="cTemplateText" placeholder="template name, e.g. new_project_launch" hidden></label>
+        <label for="cLang" style="max-width:140px">Language code<input id="cLang" value="en"></label>
+      </div>
+      <div class="sample" id="tplBody" hidden></div>
+      <label for="cParams">Variables, one per line for {{1}}, {{2}}… Use column names in braces, with an optional fallback after |
+        <textarea id="cParams" placeholder="{first_name}&#10;{locality|Pune}&#10;Aurum Greens"></textarea></label>
+      <label for="cImage">Header image URL (only if the template has an image header)<input id="cImage" placeholder="https://…/brochure.jpg"></label>
+      <div><button id="check">Check list</button></div>
+      <div id="draft" hidden class="card" style="padding:12px"></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center"><h2>Campaigns</h2><button class="ghost" id="refresh">Refresh</button></div>
+      <div id="list"></div>
+    </div>
+
+    <div class="card">
+      <h2>Opted out</h2>
+      <div class="row">
+        <label for="optPhone">Add a number that asked not to be contacted<input id="optPhone" placeholder="98xxxxxxxx"></label>
+        <button class="ghost" id="optAdd">Add</button>
+      </div>
+      <div class="small muted" id="optCount"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let KEY = sessionStorage.getItem('adminKey') || '', csvText = '', fileName = '', templates = [], draftId = null;
+$('#key').value = KEY;
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {'Content-Type': 'application/json', 'X-API-Key': KEY, ...(opts.headers || {})}});
+  if (!r.ok) { let d; try { d = (await r.json()).detail; } catch (e) { d = r.statusText; } throw new Error(d || ('Error ' + r.status)); }
+  return (r.headers.get('content-type') || '').includes('json') ? r.json() : r.text();
+}
+
+$('#connect').onclick = async () => {
+  KEY = $('#key').value.trim(); sessionStorage.setItem('adminKey', KEY);
+  try { await loadAll(); $('#keyMsg').hidden = true; $('#app').hidden = false; }
+  catch (e) { $('#keyMsg').textContent = e.message; $('#keyMsg').hidden = false; }
+};
+
+async function loadAll() {
+  const data = await api('/campaigns');
+  $('#limits').textContent = `Daily limit ${data.daily_limit} people · sending ${data.sending_hours}`;
+  renderList(data.campaigns);
+  try { templates = (await api('/whatsapp/templates')).filter(t => t.status === 'APPROVED'); } catch (e) { templates = []; }
+  const sel = $('#cTemplate');
+  if (templates.length) {
+    sel.hidden = false; $('#cTemplateText').hidden = true;
+    sel.innerHTML = templates.map((t, i) => `<option value="${i}">${esc(t.name)} · ${esc(t.language)} · ${esc(t.category || '')}</option>`).join('');
+    sel.onchange();
+  } else { sel.hidden = true; $('#cTemplateText').hidden = false; }
+  const opts = await api('/opt-outs'); $('#optCount').textContent = `${opts.length} number(s) opted out. They are skipped in every campaign.`;
+}
+$('#cTemplate').onchange = () => {
+  const t = templates[+$('#cTemplate').value]; if (!t) return;
+  $('#cLang').value = t.language;
+  $('#tplBody').hidden = false; $('#tplBody').textContent = t.body + (t.variables ? `\n\nNeeds ${t.variables} variable(s).` : '');
+  if (!$('#cParams').value.trim() && t.variables) $('#cParams').value = Array.from({length: t.variables}, (_, i) => i === 0 ? '{first_name}' : '').join('\n');
+};
+
+$('#cFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  csvText = await f.text(); fileName = f.name;
+  const header = csvText.replace(/^﻿/, '').split(/\r?\n/)[0] || '';
+  const cols = header.split(/[,;\t]/).map(h => h.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')).filter(Boolean);
+  const rows = csvText.split(/\r?\n/).filter(l => l.trim()).length - 1;
+  $('#cols').innerHTML = `${rows} rows · columns you can use: ` + ['first_name', ...cols].map(c => `<code>{${esc(c)}}</code>`).join(' ');
+  if (!$('#cName').value) $('#cName').value = f.name.replace(/\.csv$/i, '');
+};
+
+$('#check').onclick = async () => {
+  const template = templates.length ? templates[+$('#cTemplate').value]?.name : $('#cTemplateText').value.trim();
+  if (!csvText || !template) return showDraft('<div class="msg bad">Choose a CSV file and a template first.</div>');
+  try {
+    const res = await api('/campaigns', {method: 'POST', body: JSON.stringify({
+      name: $('#cName').value.trim() || fileName, template_name: template, language: $('#cLang').value.trim() || 'en',
+      params: $('#cParams').value.split('\n').map(s => s.trim()).filter(Boolean), csv: csvText,
+      header_image_url: $('#cImage').value.trim() || null, source_file: fileName})});
+    draftId = res.id; const c = res.counts;
+    showDraft(`<h2>Ready to send to ${c.queued} people</h2>
+      <div class="stats">${[['Rows', c.rows], ['Will receive', c.queued], ['Duplicates merged', c.duplicates], ['Invalid numbers', c.invalid_phone], ['Already opted out', c.opted_out], ['Missing variables', c.missing_values]].map(([k, v]) => `<div class="stat"><span class="small muted">${k}</span><b>${v}</b></div>`).join('')}</div>
+      ${res.samples.map(s => `<div class="sample"><b>${esc(s.name || s.phone)}</b> ${esc(s.phone)}<br>${s.variables.map((v, i) => `{{${i+1}}} = ${esc(v)}`).join(' · ')}</div>`).join('')}
+      ${res.problems.length ? `<ul class="problems">${res.problems.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+      <div class="row"><label for="testPhone">Send a test to your own number first<input id="testPhone" placeholder="98xxxxxxxx"></label><button class="ghost" id="testBtn">Send test</button></div>
+      <div id="testMsg"></div>
+      <div class="row"><button id="startBtn" ${c.queued ? '' : 'disabled'}>Start campaign</button><button class="ghost" id="discardBtn">Discard draft</button></div>`);
+    $('#testBtn').onclick = async () => { try { const t = await api(`/campaigns/${draftId}/test`, {method: 'POST', body: JSON.stringify({phone: $('#testPhone').value})});
+      $('#testMsg').innerHTML = t.ok ? `<div class="msg ok">Test sent${String(t.message_id).startsWith('sim-') ? ' (simulated: WhatsApp is not connected yet)' : ''}. Check the phone.</div>` : `<div class="msg bad">Meta refused it: ${esc(t.error_code)} ${esc(t.error)}</div>`; }
+      catch (e) { $('#testMsg').innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; } };
+    $('#startBtn').onclick = async () => { await act(draftId, 'start'); showDraft('<div class="msg ok">Campaign started. Progress shows below.</div>'); };
+    $('#discardBtn').onclick = async () => { await act(draftId, 'cancel'); showDraft(''); };
+    loadAll();
+  } catch (e) { showDraft(`<div class="msg bad">${esc(e.message)}</div>`); }
+};
+function showDraft(html) { $('#draft').innerHTML = html; $('#draft').hidden = !html; }
+
+function renderList(list) {
+  $('#list').innerHTML = list.length ? list.map(c => { const s = c.stats, base = Math.max(1, s.total - s.skipped - s.opted_out);
+    return `<div class="camp"><div class="row" style="justify-content:space-between;align-items:center">
+      <div><b>${esc(c.name)}</b> <span class="pill ${c.status}">${c.status}</span><div class="small muted">${esc(c.template_name)} · ${esc(c.language)} · ${s.total} contacts</div></div>
+      <div class="row">${c.status === 'running' ? `<button class="ghost" data-act="pause" data-id="${c.id}">Pause</button>` : ''}${c.status === 'paused' || c.status === 'draft' ? `<button data-act="${c.status === 'draft' ? 'start' : 'resume'}" data-id="${c.id}">${c.status === 'draft' ? 'Start' : 'Resume'}</button>` : ''}${['running','paused','draft'].includes(c.status) ? `<button class="danger" data-act="cancel" data-id="${c.id}">Cancel</button>` : ''}<button class="ghost" data-export="${c.id}">Export CSV</button></div></div>
+      ${c.note ? `<div class="msg">${esc(c.note)}</div>` : ''}
+      <div class="bar"><i style="width:${Math.min(100, s.sent / base * 100)}%"></i></div>
+      <div class="stats">${[['Waiting', s.queued], ['Sent', s.sent], ['Delivered', s.delivered], ['Read', s.read], ['Replied', s.replied], ['Failed', s.failed], ['Opted out', s.opted_out]].map(([k, v]) => `<div class="stat"><span class="small muted">${k}</span><b>${v}</b></div>`).join('')}</div></div>`; }).join('') : '<p class="muted">No campaigns yet.</p>';
+}
+async function act(id, a) { try { await api(`/campaigns/${id}/${a}`, {method: 'POST'}); } catch (e) { alert(e.message); } loadAll(); }
+$('#list').onclick = async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.act) { if (b.dataset.act === 'cancel' && !confirm('Cancel this campaign? People not yet messaged will not be.')) return; act(b.dataset.id, b.dataset.act); }
+  if (b.dataset.export) { const text = await api(`/campaigns/${b.dataset.export}/export.csv`); const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], {type: 'text/csv'})); a.download = `campaign-${b.dataset.export}.csv`; a.click(); }
+};
+$('#refresh').onclick = loadAll;
+$('#optAdd').onclick = async () => { try { await api('/opt-outs', {method: 'POST', body: JSON.stringify({phone: $('#optPhone').value})}); $('#optPhone').value = ''; loadAll(); } catch (e) { alert(e.message); } };
+setInterval(() => { if (!$('#app').hidden) api('/campaigns').then(d => renderList(d.campaigns)).catch(() => {}); }, 10000);
+if (KEY) $('#connect').click();
+</script>
+</body>
+</html>

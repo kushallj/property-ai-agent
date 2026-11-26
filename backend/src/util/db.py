@@ -47,6 +47,20 @@ CREATE TABLE IF NOT EXISTS processed_messages (
 CREATE TABLE IF NOT EXISTS routine_runs (
     routine TEXT, period TEXT, ran_at TEXT, items INTEGER, summary TEXT, PRIMARY KEY (routine, period)
 );
+CREATE TABLE IF NOT EXISTS campaigns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, template_name TEXT, language TEXT, params_json TEXT,
+    header_image_url TEXT, status TEXT, note TEXT, source_file TEXT, created_at TEXT, started_at TEXT, finished_at TEXT
+);
+CREATE TABLE IF NOT EXISTS campaign_recipients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, campaign_id INTEGER, phone TEXT, name TEXT, data_json TEXT,
+    params_json TEXT, status TEXT, wamid TEXT, error TEXT, attempts INTEGER DEFAULT 0, next_attempt_at TEXT,
+    sent_at TEXT, delivered_at TEXT, read_at TEXT, replied_at TEXT, UNIQUE (campaign_id, phone)
+);
+CREATE INDEX IF NOT EXISTS idx_recipients_wamid ON campaign_recipients (wamid);
+CREATE INDEX IF NOT EXISTS idx_recipients_queue ON campaign_recipients (campaign_id, status);
+CREATE TABLE IF NOT EXISTS opt_outs (
+    phone TEXT PRIMARY KEY, reason TEXT, created_at TEXT
+);
 """
 
 # Columns added after the first release. Older databases get them on first connect.
@@ -311,7 +325,8 @@ def nurture_candidates(quiet_since: str, nurtured_before: str) -> list[dict]:
     with connect() as conn:
         return [dict(r) for r in conn.execute(
             """SELECT * FROM leads WHERE band IN ('Warm','Cold') AND phone IS NOT NULL AND city IS NOT NULL
-               AND updated_at < ? AND (last_nurture_at IS NULL OR last_nurture_at < ?) ORDER BY score DESC""",
+               AND updated_at < ? AND (last_nurture_at IS NULL OR last_nurture_at < ?)
+               AND REPLACE(phone, '+', '') NOT IN (SELECT phone FROM opt_outs) ORDER BY score DESC""",
             (quiet_since, nurtured_before))]
 
 

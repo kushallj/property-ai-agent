@@ -37,6 +37,44 @@ customer message
 Score rubric: Timeline 25 · Budget fit 20 · Financing 15 · Buying intent 20 · Contact info 10 · Engagement 10.
 Hot ≥ 75, Warm 50–74, Cold < 50. Edit `src/util/lead_scoring.py` to tune it for a client.
 
+## WhatsApp campaigns
+
+Send an approved WhatsApp template to a contact list, and let the AI agent handle every reply.
+
+**Easiest way:** open `https://<your-server>/admin`, paste `ADMIN_API_KEY`, then:
+1. Upload a CSV with a phone column (`phone`, `mobile`, `whatsapp`…) and any other columns (`name`, `locality`, `project`…).
+2. Pick an approved template (listed automatically when `WHATSAPP_BUSINESS_ACCOUNT_ID` is set) and fill its
+   variables from columns, one per line: `{first_name}`, `{locality|your area}` (text after `|` is used when the
+   cell is empty), or fixed text.
+3. **Check list** shows how many will receive it, duplicates merged, invalid numbers, people who opted out,
+   and three filled-in samples. Send a test to your own number, then **Start campaign**.
+4. Watch waiting → sent → delivered → read → replied update live. Pause, resume, cancel, or export results as CSV.
+
+**What happens automatically**
+- Numbers are cleaned: `98000 04521`, `09800004521` and `+91-9800004521` all become `+919800004521`. NRI numbers with a country code are kept.
+- Sending runs only between `CAMPAIGN_HOURS` (default 9:00 to 21:00 IST) and stops at `WHATSAPP_DAILY_LIMIT`
+  people per day across all campaigns. It carries on the next morning.
+- Meta rate limits are retried with backoff. A template or token problem pauses the campaign with Meta's error
+  so nothing is lost; fix it and press Resume. A bad number fails on its own without stopping the rest.
+- Anyone who replies **STOP** (or taps a "Stop promotions" button) is opted out of every future campaign and
+  the weekly shortlist, and gets a confirmation. **START** opts them back in.
+- A reply goes to the AI agent like any WhatsApp chat. The lead's source becomes `Campaign: <name>`, and the
+  agent's notes record which campaign they answered.
+
+**Before your first real campaign**
+- Create the template in WhatsApp Manager (category Marketing) and wait for approval. Example body:
+  `Hi {{1}}, new 2 and 3 BHK homes are launching in {{2}}, starting ₹85 L. Reply YES for the price list and site visit slots.`
+  Add a quick-reply button "Stop promotions" so people can opt out in one tap.
+- Only message people who agreed to hear from the business on WhatsApp. Messaging people without consent gets
+  numbers reported, lowers your quality rating, and can get the number blocked.
+- Meta charges per marketing message delivered. Check the current India rate in WhatsApp Manager.
+- Set `WHATSAPP_DAILY_LIMIT` to your number's messaging limit (shown in WhatsApp Manager). New numbers start
+  around 250 people a day and Meta raises the limit as you send good-quality messages.
+
+**API** (all need `ADMIN_API_KEY`): `POST /campaigns` (name, template_name, language, params, csv),
+`POST /campaigns/{id}/test|start|pause|resume|cancel`, `GET /campaigns`, `GET /campaigns/{id}`,
+`GET /campaigns/{id}/recipients`, `GET /campaigns/{id}/export.csv`, `GET /whatsapp/templates`, `GET|POST /opt-outs`.
+
 ## Ideas borrowed from OpenMausBot
 
 Three features follow patterns from [OpenMausBot](https://github.com/milind-soni/OpenMausBot) (Apache-2.0).

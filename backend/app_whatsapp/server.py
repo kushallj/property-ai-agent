@@ -20,16 +20,20 @@ import sqlite3
 import threading
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from src.graph import create_graph
 from src.runner import config_for, describe_pending, resume, run_turn
+from src import campaigns
 from src.util import db, memory
-from src.util.notify import notify_broker, send_whatsapp
+from src.util.llm import firm_name
+from src.util.notify import list_templates, notify_broker, send_whatsapp
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -59,12 +63,14 @@ async def lifespan(_app):
     if os.getenv("WHATSAPP_TOKEN") and not os.getenv("WHATSAPP_APP_SECRET"):
         logger.warning("WHATSAPP_APP_SECRET is not set: incoming webhooks will be refused until it is.")
     db.ensure_listings()
-    stop = None
+    stops = []
     if os.getenv("ROUTINES_ENABLED", "1") != "0":
         from src.routines import start_background
-        stop = start_background()
+        stops.append(start_background())
+    if os.getenv("CAMPAIGNS_ENABLED", "1") != "0":
+        stops.append(campaigns.start_worker())
     yield
-    if stop:
+    for stop in stops:
         stop.set()
 
 
@@ -157,6 +163,8 @@ async def receive(request: Request, background: BackgroundTasks):
     for entry in data.get("entry", []):
         for change in entry.get("changes", []):
             value = change.get("value", {})
+            for status in value.get("statuses", []):  # delivery receipts for messages we sent
+                campaigns.apply_status(status)
             names = {c.get("wa_id"): c.get("profile", {}).get("name") for c in value.get("contacts", [])}
             for msg in value.get("messages", []):
                 # Meta re-delivers when it doesn't get a fast 200; handle each message id once.
@@ -166,8 +174,11 @@ async def receive(request: Request, background: BackgroundTasks):
                 sender = msg.get("from", "")
                 if msg.get("type") == "text":
                     text = msg["text"]["body"]
-                elif msg.get("type") == "button":
+                elif msg.get("type") == "button":  # quick-reply button on a template, e.g. "Interested" / "Stop promotions"
                     text = msg["button"].get("text", "")
+                elif msg.get("type") == "interactive":
+                    reply = msg["interactive"].get("button_reply") or msg["interactive"].get("list_reply") or {}
+                    text = reply.get("title", "")
                 else:
                     send_whatsapp(sender, "Sorry, I can read text messages only for now. Please type your question.")
                     continue
@@ -187,10 +198,21 @@ def route_inbound(sender: str, text: str, profile_name: Optional[str]) -> None:
             out = handle_decision(m.group(2), approve, m.group(3).strip())
             send_whatsapp(sender, f"{'Confirmed' if approve else 'Declined'}. Customer told: {out['reply'][:300]}")
             return
-        lead = {"phone": "+" + _digits(sender), "source": "WhatsApp"}
+        phone = _digits(sender)
+        check = campaigns.on_inbound(phone, text)
+        if check["action"] == "opted_out":
+            send_whatsapp(sender, f"Done. You won't get offers from {firm_name()} on WhatsApp any more. Reply START if you change your mind.")
+            return
+        if check["action"] == "opted_in":
+            send_whatsapp(sender, f"Welcome back! You'll get property updates from {firm_name()} again. Reply STOP any time.")
+            return
+        lead = {"phone": "+" + phone, "source": "WhatsApp"}
         if profile_name:
             lead["name"] = profile_name
-        handle_customer(f"wa-{_digits(sender)}", text, lead, reply_to=sender)
+        if check["action"] == "campaign_reply":
+            lead["source"] = f"Campaign: {check['campaign']}"
+            memory.add_notes(f"wa-{phone}", [f"Replied to the '{check['campaign']}' WhatsApp campaign"], by="agent")
+        handle_customer(f"wa-{phone}", text, lead, reply_to=sender)
     except HTTPException as exc:
         send_whatsapp(sender, str(exc.detail))
     except Exception:
@@ -271,6 +293,112 @@ def run_routine(name: str):
     if name not in {r.name for r in ROUTINES}:
         raise HTTPException(404, f"No routine {name}")
     return run_due(force=name)
+
+
+# ---------- campaigns ----------
+class CampaignIn(BaseModel):
+    name: str
+    template_name: str
+    language: str = "en"
+    params: list[str] = []  # one entry per {{n}} in the template body, e.g. ["{first_name}", "{locality|Pune}"]
+    csv: str  # the contact file's text
+    header_image_url: Optional[str] = None
+    source_file: str = ""
+
+
+class TestIn(BaseModel):
+    phone: str
+
+
+def _campaign_or_404(cid: int) -> dict:
+    c = campaigns.get_campaign(cid)
+    if not c:
+        raise HTTPException(404, f"No campaign {cid}")
+    return c
+
+
+@protected.get("/whatsapp/templates")
+def whatsapp_templates():
+    """Approved templates from WhatsApp Manager (needs WHATSAPP_BUSINESS_ACCOUNT_ID)."""
+    try:
+        return list_templates()
+    except Exception as exc:
+        raise HTTPException(502, f"Could not load templates from Meta: {exc}")
+
+
+@protected.post("/campaigns")
+def create_campaign(body: CampaignIn):
+    """Create a draft campaign from CSV text. Returns counts, sample variables and row problems to review."""
+    try:
+        return campaigns.create_campaign(body.name, body.template_name, body.language, body.params, body.csv,
+                                         body.header_image_url, body.source_file)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@protected.get("/campaigns")
+def list_all_campaigns():
+    return {"campaigns": campaigns.list_campaigns(), "daily_limit": campaigns.daily_limit(),
+            "sending_hours": "%d:00-%d:00 IST" % campaigns.sending_hours()}
+
+
+@protected.get("/campaigns/{cid}")
+def campaign_detail(cid: int):
+    return {**_campaign_or_404(cid), "stats": campaigns.stats(cid)}
+
+
+@protected.get("/campaigns/{cid}/recipients")
+def campaign_recipients(cid: int, status: Optional[str] = None):
+    _campaign_or_404(cid)
+    return campaigns.recipients(cid, status, limit=500)
+
+
+@protected.get("/campaigns/{cid}/export.csv")
+def campaign_export(cid: int):
+    _campaign_or_404(cid)
+    return Response(campaigns.export_csv(cid), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="campaign-{cid}.csv"'})
+
+
+@protected.post("/campaigns/{cid}/test")
+def campaign_test(cid: int, body: TestIn):
+    _campaign_or_404(cid)
+    try:
+        return campaigns.send_test(cid, body.phone)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@protected.post("/campaigns/{cid}/{action}")
+def campaign_action(cid: int, action: str):
+    target = {"start": "running", "resume": "running", "pause": "paused", "cancel": "cancelled"}.get(action)
+    if not target:
+        raise HTTPException(404, f"Unknown action {action}")
+    _campaign_or_404(cid)
+    try:
+        return campaigns.set_status(cid, target)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@protected.get("/opt-outs")
+def opt_outs():
+    return campaigns.list_opt_outs()
+
+
+@protected.post("/opt-outs")
+def add_opt_out(body: TestIn):
+    phone = campaigns.normalize_phone(body.phone)
+    if not phone:
+        raise HTTPException(400, "Invalid phone number")
+    campaigns.opt_out(phone, reason="added by broker")
+    return {"opted_out": "+" + phone}
+
+
+@app.get("/admin", include_in_schema=False)
+def admin_page():
+    """Campaign dashboard. The page holds no data itself; it asks for ADMIN_API_KEY and calls the API."""
+    return FileResponse(Path(__file__).with_name("admin.html"), media_type="text/html")
 
 
 app.include_router(protected)
