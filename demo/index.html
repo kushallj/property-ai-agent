@@ -1,0 +1,1853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<style>body{margin:0;font-size:14px}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<meta charset="utf-8">
+<title>BrokerMitra Agent Console</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@500;600;700&display=swap">
+<style>
+/* Layout: sticky header with tabs; console = chat | agent trace | broker panel, stacking on narrow screens */
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --surface-2:#F8F9FB; --ink:#16213A; --muted:#5D6779; --line:#E1E5EC;
+  --brand:#0E5E5A; --brand-soft:#E2F1EF; --accent:#D9861C; --accent-soft:#FBEFD9; --accent-ink:#8A4F06;
+  --hot:#C8412B; --hot-soft:#FBE6E2; --warm:#C7780F; --warm-soft:#FCF0DC; --cold:#2F6FC4; --cold-soft:#E3EDFB; --ok:#1C8556; --ok-soft:#E0F3EA;
+  --chat-bg:#E6ECEA; --bubble-in:#FFFFFF; --bubble-out:#D5EFE2; --shadow:0 1px 2px rgba(22,33,58,.06),0 4px 16px rgba(22,33,58,.05);
+  --f-display:"Sora",ui-sans-serif,system-ui,sans-serif; --f-body:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E131A; --surface:#151C25; --surface-2:#1A222D; --ink:#E6EBF2; --muted:#98A3B5; --line:#26313D;
+  --brand:#47B8AF; --brand-soft:#173634; --accent:#F0A743; --accent-soft:#3A2B14; --accent-ink:#F5C27A;
+  --hot:#F0715B; --hot-soft:#3D1F1A; --warm:#F0A743; --warm-soft:#3A2B14; --cold:#6FA5EE; --cold-soft:#18283E; --ok:#4CC48C; --ok-soft:#14322A;
+  --chat-bg:#0F1A1B; --bubble-in:#1D2630; --bubble-out:#1D4A3B; --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E131A; --surface:#151C25; --surface-2:#1A222D; --ink:#E6EBF2; --muted:#98A3B5; --line:#26313D;
+  --brand:#47B8AF; --brand-soft:#173634; --accent:#F0A743; --accent-soft:#3A2B14; --accent-ink:#F5C27A;
+  --hot:#F0715B; --hot-soft:#3D1F1A; --warm:#F0A743; --warm-soft:#3A2B14; --cold:#6FA5EE; --cold-soft:#18283E; --ok:#4CC48C; --ok-soft:#14322A;
+  --chat-bg:#0F1A1B; --bubble-in:#1D2630; --bubble-out:#1D4A3B; --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1480px;margin:0 auto}
+.mono{font-family:var(--f-mono)}
+.num{font-variant-numeric:tabular-nums}
+.label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+
+/* header */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:12px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.logo{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;color:var(--surface);font-family:var(--f-display);font-weight:700;font-size:15px}
+.brand h1{font-size:17px}
+.brand small{display:block;color:var(--muted);font-size:12px;font-weight:500;font-family:var(--f-body)}
+.firm{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.firm input{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:6px 10px;width:190px;max-width:46vw;font-weight:600;color:var(--ink)}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav.tabs a{padding:10px 14px;text-decoration:none;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{color:var(--ink);border-color:var(--accent)}
+.sample{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);padding:3px 8px;border-radius:999px}
+
+main{padding-block:20px 48px}
+section.view{display:grid;gap:16px}
+.view-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.view-head h2{font-size:22px}
+.view-head p{margin:4px 0 0;color:var(--muted);max-width:70ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.panel-h h3{font-size:14px}
+.panel-b{padding:14px}
+
+/* scenario bar */
+.scen{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-weight:600;font-size:13px;display:inline-flex;gap:6px;align-items:center}
+.chip[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-soft);color:var(--brand)}
+.btn{border:0;border-radius:8px;padding:8px 14px;font-weight:600;background:var(--brand);color:var(--surface)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn.accent{background:var(--accent);color:#1d1305}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* console grid */
+.console{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.85fr) minmax(0,1.1fr);gap:16px;align-items:start}
+@media (max-width:1180px){.console{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.trace-col{grid-column:1 / -1;order:3}}
+@media (max-width:760px){.console{grid-template-columns:minmax(0,1fr)}}
+
+/* chat */
+.phone{display:flex;flex-direction:column;height:640px;overflow:hidden}
+@media (max-width:760px){.phone{height:560px}}
+.chat-h{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--brand);color:var(--surface);border-radius:12px 12px 0 0}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.chat-h .who{line-height:1.25;min-width:0}
+.chat-h .who b{display:block;font-size:14px}
+.chat-h .who span{font-size:12px;opacity:.85}
+.chat-h .src{margin-left:auto;font-size:11px;background:rgba(255,255,255,.16);padding:3px 8px;border-radius:999px;white-space:nowrap}
+.msgs{flex:1;overflow-y:auto;padding:14px;background:var(--chat-bg);display:flex;flex-direction:column;gap:6px}
+.day{align-self:center;font-size:11px;background:var(--surface);color:var(--muted);padding:3px 10px;border-radius:6px;margin-bottom:4px}
+.b{max-width:86%;padding:7px 10px 5px;border-radius:10px;font-size:13.5px;line-height:1.45;box-shadow:0 1px 1px rgba(0,0,0,.06);white-space:pre-wrap;overflow-wrap:anywhere}
+.b.lead{align-self:flex-start;background:var(--bubble-in);border-top-left-radius:2px}
+.b.agent{align-self:flex-end;background:var(--bubble-out);border-top-right-radius:2px}
+.b .t{display:block;text-align:right;font-size:10.5px;color:var(--muted);margin-top:2px}
+.b .props{display:grid;gap:6px;margin:6px 0 2px}
+.b .pp{background:var(--surface);border-radius:8px;padding:7px 9px;border:1px solid var(--line);white-space:normal}
+.b .pp b{font-size:13px}
+.b .pp div{font-size:12px;color:var(--muted)}
+.b .slots{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;white-space:normal}
+.b .slots button{border:1px solid var(--brand);color:var(--brand);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
+.sys{align-self:center;font-size:11.5px;color:var(--muted);background:var(--surface);border-radius:6px;padding:4px 10px;text-align:center;max-width:90%}
+.typing{align-self:flex-end;background:var(--bubble-out);border-radius:10px;padding:9px 12px;display:flex;gap:4px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+.composer{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:var(--surface);border-radius:0 0 12px 12px}
+.composer input{flex:1;min-width:0;border:1px solid var(--line);border-radius:999px;padding:9px 14px;background:var(--surface-2)}
+.composer button{border-radius:999px}
+.hint{font-size:11.5px;color:var(--muted);padding:0 12px 10px;background:var(--surface);border-radius:0 0 12px 12px;margin-top:-4px}
+
+/* trace */
+.trace{list-style:none;margin:0;padding:0;display:grid;gap:0;max-height:560px;overflow-y:auto}
+.trace li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;padding:8px 0;position:relative}
+.trace li::before{content:"";position:absolute;left:8px;top:22px;bottom:-8px;width:2px;background:var(--line)}
+.trace li:last-child::before{display:none}
+.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--brand);background:var(--surface);margin-top:2px;z-index:1}
+.trace li.pause .dot{border-color:var(--accent);background:var(--accent-soft)}
+.trace li.score .dot{border-color:var(--hot)}
+.trace li.in .dot{border-color:var(--muted)}
+.trace .node{font-family:var(--f-mono);font-size:12px;font-weight:500;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.trace .node em{font-style:normal;color:var(--muted);font-size:11px}
+.trace .det{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.trace pre{margin:4px 0 0;font-family:var(--f-mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:6px 8px;overflow-x:auto;color:var(--ink)}
+.empty{color:var(--muted);font-size:13px;padding:18px 4px;text-align:center}
+.crit{display:flex;flex-wrap:wrap;gap:6px}
+.crit span{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:var(--surface-2)}
+.crit span b{font-weight:600}
+.crit span.miss{border-style:dashed;color:var(--muted);background:transparent}
+
+/* broker panel */
+.stack{display:grid;gap:16px;min-width:0}
+.score-top{display:flex;gap:16px;align-items:center}
+.gauge{position:relative;width:96px;height:96px;flex:none}
+.gauge svg{width:100%;height:100%;transform:rotate(-90deg)}
+.gauge .v{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.gauge .v b{font-family:var(--f-display);font-size:26px;line-height:1}
+.gauge .v span{font-size:10px;color:var(--muted);letter-spacing:.06em}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.Hot{color:var(--hot);background:var(--hot-soft)}
+.pill.Warm{color:var(--warm);background:var(--warm-soft)}
+.pill.Cold{color:var(--cold);background:var(--cold-soft)}
+.pill.New{color:var(--muted);background:var(--surface-2)}
+.lead-meta{display:grid;gap:3px;min-width:0}
+.lead-meta b{font-size:16px;font-family:var(--f-display)}
+.factors{display:grid;gap:8px;margin-top:14px}
+.factor{display:grid;grid-template-columns:110px minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:12.5px}
+.bar{height:7px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);border-radius:99px;transition:width .5s ease}
+.factor .n{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.factor small{grid-column:2 / -1;color:var(--muted);margin-top:-6px;font-size:11.5px}
+.props-list{display:grid;gap:10px}
+.prop{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:4px;background:var(--surface-2)}
+.prop-top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.prop-top b{font-family:var(--f-display);font-size:14px}
+.price{font-family:var(--f-display);font-weight:700;color:var(--brand);white-space:nowrap}
+.prop .row{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.tag{font-size:11px;font-weight:600;padding:1px 7px;border-radius:5px;background:var(--brand-soft);color:var(--brand)}
+.tag.uc{background:var(--accent-soft);color:var(--accent-ink)}
+.tag.over{background:var(--hot-soft);color:var(--hot)}
+.rera{font-family:var(--f-mono);font-size:10.5px;color:var(--muted)}
+.appt{border:1.5px dashed var(--accent);background:var(--accent-soft);border-radius:10px;padding:12px;display:grid;gap:8px}
+.appt.done{border-style:solid;border-color:var(--ok);background:var(--ok-soft)}
+.appt h4{margin:0;font-family:var(--f-display);font-size:14px}
+.appt .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* leads */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{padding:14px}
+.kpi b{display:block;font-family:var(--f-display);font-size:26px;margin-top:4px}
+.kpi span{font-size:12px;color:var(--muted)}
+.mix{display:flex;height:12px;border-radius:99px;overflow:hidden;margin:10px 0}
+.mix i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:13px}
+th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tr.live td{background:var(--brand-soft)}
+.livetag{font-size:10px;font-weight:700;color:var(--surface);background:var(--brand);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px}
+.sbar{display:flex;align-items:center;gap:8px}
+.sbar .bar{width:60px}
+
+/* briefing */
+.brief{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.brief{grid-template-columns:minmax(0,1fr)}}
+.wa{border-radius:12px;overflow:hidden}
+.wa .msgs{height:auto;max-height:none}
+.wa .b{max-width:94%}
+.quick{display:flex;gap:6px;flex-wrap:wrap;padding:10px;background:var(--surface);border-top:1px solid var(--line)}
+.quick span{border:1px solid var(--brand);color:var(--brand);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
+.cal{display:grid;gap:8px}
+.cal-item{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.cal-item .when{font-family:var(--f-display);font-weight:600;font-size:13px;line-height:1.25}
+.cal-item .when span{display:block;font-family:var(--f-body);font-weight:500;font-size:11.5px;color:var(--muted)}
+.cal-item.live{border-color:var(--brand);background:var(--brand-soft)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:860px){.two{grid-template-columns:minmax(0,1fr)}}
+ul.clean{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+ul.clean li{display:grid;gap:2px}
+
+/* how */
+.flow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+@media (max-width:1000px){.flow{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.flow{grid-template-columns:minmax(0,1fr)}}
+.step{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface-2);display:grid;gap:6px;align-content:start}
+.step .k{font-family:var(--f-mono);font-size:11px;color:var(--brand)}
+.step b{font-family:var(--f-display);font-size:14px}
+.step p{margin:0;font-size:12.5px;color:var(--muted)}
+.step.hil{border-color:var(--accent);background:var(--accent-soft)}
+.rollout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.rollout{grid-template-columns:minmax(0,1fr)}}
+.rollout .panel-b h3{font-size:15px;margin-bottom:6px}
+.rollout ul{margin:0;padding-left:18px;color:var(--muted);display:grid;gap:4px;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips span{border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface-2);font-size:13px;font-weight:500}
+footer{color:var(--muted);font-size:12px;padding-block:8px 24px}
+/* lead manager */
+.filebtn{cursor:pointer;display:inline-flex;align-items:center}
+.pill.Nurture{color:var(--cold);background:var(--cold-soft)}
+.pill.Dead{color:var(--muted);background:var(--surface-2)}
+.pipe{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;font-size:13px}
+.pipe b{font-family:var(--f-display);font-size:18px;margin-right:4px}
+.pipe .arrow{color:var(--muted)}
+.segbar{display:flex;height:14px;border-radius:99px;overflow:hidden;margin:12px 0 8px;background:var(--surface-2)}
+.segbar i{display:block;height:100%;transition:width .4s ease}
+.segchips{display:flex;flex-wrap:wrap;gap:6px}
+.mgr-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:960px){.mgr-grid{grid-template-columns:minmax(0,1fr)}}
+.calls{list-style:none;margin:0;padding:0;display:grid;gap:8px;max-height:520px;overflow-y:auto}
+.calls li{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);cursor:pointer}
+.calls li:hover{border-color:var(--brand)}
+.calls .rank{font-family:var(--f-display);font-weight:700;color:var(--muted);font-size:13px;padding-top:1px}
+.calls .nm{font-weight:600}
+.calls .sub{font-size:12px;color:var(--muted)}
+.calls .act{font-size:12px;color:var(--brand);font-weight:600;margin-top:2px}
+.adv{display:grid;gap:8px}
+.adv-row{display:grid;grid-template-columns:70px minmax(0,1fr) 70px;gap:10px;align-items:center;font-size:13px}
+.adv-row .bar i{background:var(--accent)}
+.adv-row span:last-child{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.form-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.form-grid .full{grid-column:1 / -1}
+.field{display:grid;gap:3px;font-size:12px;color:var(--muted)}
+.field input,.field select{border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface-2);color:var(--ink);font-size:13px;min-width:0;width:100%}
+.reply{border-radius:10px;background:var(--bubble-out);padding:9px 11px;font-size:13px;white-space:pre-wrap}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.toolbar input,.toolbar select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface-2);color:var(--ink);font-size:13px}
+.toolbar input{flex:1;min-width:160px}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--surface-2)}
+tr.fresh td{background:var(--accent-soft)}
+td .req{display:flex;flex-wrap:wrap;gap:4px}
+td .req span{font-size:11.5px;border:1px solid var(--line);border-radius:5px;padding:0 6px;background:var(--surface-2)}
+td .raw{font-size:11.5px;color:var(--muted);margin-top:3px}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.mapgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.backdrop{position:fixed;inset:0;background:rgba(8,12,20,.45);z-index:30}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:31;overflow-y:auto;display:grid;gap:14px;align-content:start;padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) 16px}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,calc(100% - 32px));max-height:86vh;overflow-y:auto;z-index:31}
+.drawer-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.drawer-h h3{font-size:18px}
+.x{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:32px;height:32px;font-size:16px;line-height:1}
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 10px;font-size:13px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;overflow-wrap:anywhere}
+.feed{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-height:240px;overflow-y:auto;font-size:13px}
+.feed li{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:13px;z-index:40;max-width:calc(100% - 32px)}
+.roi{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.roi{grid-template-columns:minmax(0,1fr)}}
+.roi-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.roi-out{display:grid;gap:10px}
+.roi-out div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:8px;font-size:13.5px}
+.roi-out b{font-family:var(--f-display);font-variant-numeric:tabular-nums}
+.roi-out .big b{font-size:24px;color:var(--brand)}
+/* campaigns */
+.camp-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:960px){.camp-grid{grid-template-columns:minmax(0,1fr)}}
+.tpl-body{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;white-space:pre-wrap}
+.tpl-body mark{background:var(--accent-soft);color:var(--accent-ink);border-radius:4px;padding:0 3px}
+.var-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.fields{display:flex;flex-wrap:wrap;gap:4px;font-size:12px;color:var(--muted)}
+.fields code{font-family:var(--f-mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.cstats{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.cstat{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface-2)}
+.cstat span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.cstat b{font-family:var(--f-display);font-size:20px;font-variant-numeric:tabular-nums}
+.qr{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;white-space:normal}
+.qr span{flex:1;text-align:center;border-top:1px solid var(--line);color:var(--brand);font-weight:600;font-size:12.5px;padding-top:6px;min-width:110px}
+.tpl-tag{font-size:11px;color:var(--muted);margin-bottom:4px;display:block}
+.pv{background:var(--chat-bg);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:6px;min-height:150px}
+.camp-note{font-size:12.5px;padding:8px 10px;border-radius:8px;background:var(--accent-soft);color:var(--accent-ink)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">BM</div>
+        <div><h1>BrokerMitra <small>AI sales agent for real estate brokers</small></h1></div>
+      </div>
+      <label class="firm" for="firmName">Demo for
+        <input id="firmName" value="Apna Ghar Realty" autocomplete="off">
+      </label>
+      <span class="sample">Sample data</span>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#console" data-view="console">Live agent</a>
+      <a href="#manager" data-view="manager">Lead manager</a>
+      <a href="#campaigns" data-view="campaigns">Campaigns</a>
+      <a href="#leads" data-view="leads">Lead sources</a>
+      <a href="#briefing" data-view="briefing">Broker briefing</a>
+      <a href="#how" data-view="how">How it works</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- LIVE AGENT -->
+  <section class="view" id="v-console">
+    <div class="view-head">
+      <div>
+        <h2>A lead messages on WhatsApp. The agent handles the rest.</h2>
+        <p>It qualifies the buyer, pulls matching inventory, scores the lead and books a site visit. Your team approves the booking with one tap. Play a scenario, or type as the customer.</p>
+      </div>
+      <div class="scen" role="group" aria-label="Scenarios">
+        <button class="chip" data-scen="hot" aria-pressed="true">Ready buyer · Whitefield</button>
+        <button class="chip" data-scen="nri" aria-pressed="false">NRI investor · Pune</button>
+        <button class="chip" data-scen="hinglish" aria-pressed="false">Hinglish browser · Noida</button>
+        <button class="btn accent" id="playBtn">Play scenario</button>
+        <button class="btn ghost" id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="console">
+      <!-- chat -->
+      <div class="panel phone">
+        <div class="chat-h">
+          <div class="avatar" id="leadAvatar">RM</div>
+          <div class="who"><b id="leadName">Rohan Mehta</b><span id="leadPhone">+91 98xxx x4521</span></div>
+          <span class="src" id="leadSrc">Portal enquiry</span>
+        </div>
+        <div class="msgs" id="msgs" aria-live="polite"></div>
+        <form class="composer" id="composer">
+          <input id="chatInput" placeholder="Type as the customer…" autocomplete="off" aria-label="Message as the customer">
+          <button class="btn" type="submit">Send</button>
+        </form>
+        <div class="hint">Try: “2BHK in Baner under 1.2 Cr, need it in 3 months” or “Hyderabad mein 3bhk chahiye”</div>
+      </div>
+
+      <!-- trace -->
+      <div class="panel trace-col">
+        <div class="panel-h"><h3>Agent trace</h3><span class="label">LangGraph nodes</span></div>
+        <div class="panel-b" style="display:grid;gap:14px">
+          <div>
+            <div class="label" style="margin-bottom:6px">Captured requirement</div>
+            <div class="crit" id="crit"></div>
+          </div>
+          <ol class="trace" id="trace"></ol>
+        </div>
+      </div>
+
+      <!-- broker -->
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-h"><h3>Lead score</h3><span class="label">Updated every reply</span></div>
+          <div class="panel-b">
+            <div class="score-top">
+              <div class="gauge">
+                <svg viewBox="0 0 100 100" aria-hidden="true">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="9"/>
+                  <circle id="gaugeArc" cx="50" cy="50" r="42" fill="none" stroke="var(--muted)" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="263.9" style="transition:stroke-dashoffset .6s ease,stroke .3s"/>
+                </svg>
+                <div class="v"><div><b id="scoreNum" class="num">0</b><span>/ 100</span></div></div>
+              </div>
+              <div class="lead-meta">
+                <b id="scoreName">Rohan Mehta</b>
+                <span><span class="pill New" id="scoreBand">New</span></span>
+                <span class="muted" id="scoreAction" style="font-size:12.5px">Waiting for the first message</span>
+              </div>
+            </div>
+            <div class="factors" id="factors"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><h3>Matched inventory</h3><span class="label" id="matchCount">—</span></div>
+          <div class="panel-b"><div class="props-list" id="props"><div class="empty">Matches appear once the agent knows location, BHK and budget.</div></div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><h3>Site visit</h3><span class="label">Needs your approval</span></div>
+          <div class="panel-b" id="apptBox"><div class="empty">No visit requested yet.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEAD MANAGER -->
+  <section class="view" id="v-manager" hidden>
+    <div class="view-head">
+      <div>
+        <h2>500 old leads in a spreadsheet? Sorted in seconds.</h2>
+        <p>Load the lead sheet the firm already has, exported from portals, ad forms or the office Excel. The agent cleans it, merges duplicates, reads each requirement, checks it against your inventory and ranks who to call today. Files stay in this browser and are never uploaded.</p>
+      </div>
+      <div class="scen">
+        <button class="btn ghost" id="mgrSample">Reload 500 sample leads</button>
+        <label class="btn accent filebtn" for="mgrFile">Upload lead sheet</label>
+        <input type="file" id="mgrFile" accept=".csv,.xlsx,.xls" hidden>
+        <label class="btn ghost filebtn" for="invFile">Upload inventory</label>
+        <input type="file" id="invFile" accept=".csv,.xlsx,.xls" hidden>
+      </div>
+    </div>
+
+    <div class="panel" id="mapPanel" hidden>
+      <div class="panel-h"><h3 id="mapTitle">Check the columns</h3><span class="label">Auto-detected</span></div>
+      <div class="panel-b" style="display:grid;gap:12px">
+        <div class="mapgrid" id="mapGrid"></div>
+        <div class="scen"><button class="btn" id="mapGo">Process leads</button><button class="btn ghost" id="mapCancel">Cancel</button></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><h3>What the agent did</h3><span class="label" id="mgrLabel">Sample data</span></div>
+      <div class="panel-b">
+        <div class="pipe" id="mgrPipe"></div>
+        <div class="segbar" id="segBar"></div>
+        <div class="segchips" id="segChips" role="group" aria-label="Filter by segment"></div>
+      </div>
+    </div>
+
+    <div class="mgr-grid">
+      <div class="panel">
+        <div class="panel-h"><h3>Call these first today</h3><span class="label" id="callCount"></span></div>
+        <div class="panel-b"><ol class="calls" id="callList"></ol></div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-h"><h3>Team workload</h3><button class="btn" id="assignBtn">Auto-assign hot and warm</button></div>
+          <div class="panel-b"><div class="adv" id="advList"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>Wake up old leads</h3><span class="label">WhatsApp</span></div>
+          <div class="panel-b" style="display:grid;gap:10px">
+            <p style="margin:0" id="reText"></p>
+            <div><button class="btn accent" id="reBtn">Preview messages</button></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>New enquiry, live</h3><span class="label">Try it yourself</span></div>
+          <form class="panel-b" id="enqForm" style="display:grid;gap:10px">
+            <div class="form-grid">
+              <label class="field">Name<input id="enqName" value="Sunil Kapoor" autocomplete="off"></label>
+              <label class="field">Mobile<input id="enqPhone" value="98111 22334" autocomplete="off" inputmode="tel"></label>
+              <label class="field full">Requirement<input id="enqReq" value="3BHK in Baner, ready to move" autocomplete="off"></label>
+              <label class="field">Budget<input id="enqBudget" value="1.2 to 1.5 Cr" autocomplete="off"></label>
+              <label class="field">Source<select id="enqSrc"><option>Website</option><option>99acres</option><option>MagicBricks</option><option>Housing.com</option><option>Meta ads</option><option>Missed call</option><option>Walk-in</option><option>Referral</option></select></label>
+            </div>
+            <div><button class="btn" type="submit">Add enquiry</button></div>
+            <div id="enqOut" hidden></div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <input id="mgrSearch" placeholder="Search name, number, locality, remark…" aria-label="Search leads" autocomplete="off">
+        <select id="mgrAdv" aria-label="Filter by advisor"><option value="all">All advisors</option><option value="none">Unassigned</option><option>Karan</option><option>Neha</option><option>Arjun</option></select>
+        <button class="btn ghost" id="copyCsv" type="button">Copy cleaned list</button>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Lead</th><th>Requirement (as read by the agent)</th><th>Source</th><th>Last contact</th><th>Score</th><th>Advisor</th><th>Next action</th></tr></thead>
+          <tbody id="mgrRows"></tbody>
+        </table>
+      </div>
+      <div class="pager"><span id="pageInfo"></span><span class="scen"><button class="btn ghost" id="prevPg" type="button">Previous</button><button class="btn ghost" id="nextPg" type="button">Next</button></span></div>
+    </div>
+
+    <div class="backdrop" id="backdrop" hidden></div>
+    <aside class="drawer" id="drawer" hidden aria-label="Lead details"></aside>
+    <div class="panel modal" id="reModal" hidden role="dialog" aria-label="Re-engage old leads"></div>
+    <div class="toast" id="toast" hidden></div>
+  </section>
+
+  <!-- CAMPAIGNS -->
+  <section class="view" id="v-campaigns" hidden>
+    <div class="view-head">
+      <div>
+        <h2>One WhatsApp campaign to 1,000 people. The agent answers every reply.</h2>
+        <p>Pick who gets it, pick an approved template, check the list and press start. Sending follows WhatsApp's rules: approved templates only, a daily limit, 9 AM to 9 PM, and STOP always works. Every reply goes to the AI agent and lands in the Lead manager.</p>
+      </div>
+      <span class="sample">Simulation · nothing is sent</span>
+    </div>
+    <div class="camp-grid">
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-h"><h3>1 · Who gets it</h3><span class="label" id="audCount"></span></div>
+          <div class="panel-b" style="display:grid;gap:10px">
+            <div class="segchips" role="group" aria-label="Audience">
+              <button class="chip" data-aud="manager" aria-pressed="true" type="button">Leads from Lead manager</button>
+              <button class="chip" data-aud="sample" aria-pressed="false" type="button">Sample list of 1,000</button>
+              <label class="chip filebtn" for="campFile">Upload contact CSV</label>
+              <input type="file" id="campFile" accept=".csv,.xlsx,.xls" hidden>
+            </div>
+            <label class="field" id="segWrap">Segment
+              <select id="campSeg"><option value="active">All active leads (Hot, Warm, Nurture)</option><option value="warmnurture">Warm and Nurture (not yet ready)</option><option value="nurture">Nurture only (gone quiet)</option></select>
+            </label>
+            <div class="muted" style="font-size:12.5px" id="audInfo"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>2 · Message</h3><span class="label">Approved in WhatsApp Manager</span></div>
+          <div class="panel-b" style="display:grid;gap:10px">
+            <label class="field">Template<select id="campTpl"></select></label>
+            <div class="tpl-body" id="tplBody"></div>
+            <div class="var-grid" id="varGrid"></div>
+            <div class="fields" id="fieldList"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>3 · Check and send</h3></div>
+          <div class="panel-b" style="display:grid;gap:10px">
+            <div class="form-grid">
+              <label class="field">Campaign name<input id="campName" value="Weekend site visits" autocomplete="off"></label>
+              <label class="field">Daily limit of this number<select id="campLimit"><option value="250">250 people a day (new number)</option><option value="1000">1,000 people a day</option><option value="10000">10,000 people a day</option></select></label>
+            </div>
+            <div><button class="btn" id="campCheck" type="button">Check list</button></div>
+            <div id="campCheckOut" hidden style="display:grid;gap:10px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-h"><h3>What they receive</h3><span class="label" id="pvTo"></span></div>
+          <div class="panel-b"><div class="pv" id="pvBox"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>Live campaign</h3><span id="runPill"></span></div>
+          <div class="panel-b" style="display:grid;gap:12px" id="runBox">
+            <div class="empty">Start a campaign to watch it go out.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEADS -->
+  <section class="view" id="v-leads" hidden>
+    <div class="view-head">
+      <div>
+        <h2>Every lead captured, answered in under a minute, and ranked</h2>
+        <p>Leads from property portals, Meta ads, your website and missed calls all land in one list. The agent replies right away, day or night, and sorts them so your team calls the hottest buyers first.</p>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="panel kpi"><span class="label">Leads this week</span><b class="num">142</b><span>+38% vs last week</span></div>
+      <div class="panel kpi"><span class="label">Median first reply</span><b class="num">38 sec</b><span>Was 3 hr 40 min with manual follow-up</span></div>
+      <div class="panel kpi"><span class="label">Hot leads</span><b class="num" id="kpiHot">18</b><span>Score 75 or higher</span></div>
+      <div class="panel kpi"><span class="label">Site visits booked</span><b class="num" id="kpiVisits">23</b><span>Approved by your team</span></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h3>Where leads come from</h3><span class="label">This week</span></div>
+      <div class="panel-b">
+        <div class="mix" id="mix"></div>
+        <div class="legend" id="mixLegend"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h">
+        <h3>Lead list</h3>
+        <div class="filters" role="group" aria-label="Filter by score">
+          <button class="chip" data-f="all" aria-pressed="true">All</button>
+          <button class="chip" data-f="Hot" aria-pressed="false">Hot</button>
+          <button class="chip" data-f="Warm" aria-pressed="false">Warm</button>
+          <button class="chip" data-f="Cold" aria-pressed="false">Cold</button>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Lead</th><th>Source</th><th>Requirement</th><th>Budget</th><th>Score</th><th>Stage</th><th>Next action (agent)</th></tr></thead>
+          <tbody id="leadRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- BRIEFING -->
+  <section class="view" id="v-briefing" hidden>
+    <div class="view-head">
+      <div>
+        <h2>Your day, on WhatsApp, before you leave home</h2>
+        <p>Every morning at 8:30 the agent sends you a summary: who to call first, today's site visits, new listings that match old leads, and price changes. Reply with one word to act on it.</p>
+      </div>
+    </div>
+    <div class="brief">
+      <div class="panel wa">
+        <div class="chat-h"><div class="avatar">BM</div><div class="who"><b>BrokerMitra</b><span>Your AI assistant</span></div></div>
+        <div class="msgs" id="briefMsgs"></div>
+        <div class="quick"><span>SEND</span><span>CALL LIST</span><span>RESCHEDULE</span><span>WEEKLY REPORT</span></div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-h"><h3>Site visits this week</h3><span class="label">Synced to Google Calendar</span></div>
+          <div class="panel-b"><div class="cal" id="cal"></div></div>
+        </div>
+        <div class="two">
+          <div class="panel">
+            <div class="panel-h"><h3>Old leads brought back</h3></div>
+            <div class="panel-b">
+              <ul class="clean">
+                <li><b>Kharadi One, 2BHK · ₹89 L</b><span class="muted">New listing matched 4 leads from August. 2 replied asking for a visit.</span></li>
+                <li><b>Baner Crest price drop · ₹1.39 Cr</b><span class="muted">Down from ₹1.45 Cr. Sent to 6 leads whose budget topped out at ₹1.4 Cr.</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><h3>Follow-ups on autopilot</h3></div>
+            <div class="panel-b">
+              <ul class="clean">
+                <li><b>31 nurture messages sent</b><span class="muted">Weekly shortlists to cold leads, in English or Hinglish.</span></li>
+                <li><b>9 visit reminders</b><span class="muted">Sent the evening before, with the location pin. No-shows dropped to 1 in 12.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW -->
+  <section class="view" id="v-how" hidden>
+    <div class="view-head">
+      <div>
+        <h2>How the agent works</h2>
+        <p>A set of small specialist agents, coordinated by a main agent. Anything that commits your team, like a site visit, waits for a person to approve it.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h3>One conversation, step by step</h3></div>
+      <div class="panel-b">
+        <div class="flow">
+          <div class="step"><span class="k">channels</span><b>Lead arrives</b><p>WhatsApp, portal enquiry, Meta lead form, website chat or missed call.</p></div>
+          <div class="step"><span class="k">main_agent</span><b>Understands and routes</b><p>Reads English, Hindi and Hinglish. Asks one question at a time.</p></div>
+          <div class="step"><span class="k">search_criteria_agent</span><b>Captures the requirement</b><p>City, locality, BHK, budget in lakhs or crores, timeline, loan status.</p></div>
+          <div class="step"><span class="k">query_database</span><b>Matches inventory</b><p>Searches your listings sheet or CRM and sends the best 3 with price, carpet area and RERA ID.</p></div>
+          <div class="step"><span class="k">lead_scorer</span><b>Scores the lead</b><p>Timeline, budget fit, financing, intent, contact details and engagement, out of 100.</p></div>
+          <div class="step hil"><span class="k">appointment_agent</span><b>Books the visit, you approve</b><p>Checks your calendar, holds a slot, waits for your one-tap approval, then confirms and reminds.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="two">
+      <div class="panel">
+        <div class="panel-h"><h3>Connects to what you already use</h3></div>
+        <div class="panel-b chips">
+          <span>WhatsApp Business API</span><span>Property portal lead emails</span><span>Meta lead ads</span><span>Website chat widget</span><span>Missed-call / IVR number</span><span>Google Calendar</span><span>Google Sheets inventory</span><span>Existing CRM</span><span>Voice calls (optional)</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h3>Built for Indian buyers</h3></div>
+        <div class="panel-b">
+          <ul class="clean">
+            <li><b>Lakhs, crores and carpet area</b><span class="muted">Understands “80L–1.2 Cr”, quotes ₹/sq ft and EMI estimates.</span></li>
+            <li><b>Hinglish and NRI-friendly</b><span class="muted">Replies in the buyer's language. Offers video walkthroughs with times shown in IST.</span></li>
+            <li><b>RERA details on every listing</b><span class="muted">Possession dates and RERA IDs come straight from your inventory.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="rollout">
+      <div class="panel"><div class="panel-b"><span class="label">Week 1</span><h3>Set up</h3><ul><li>Connect your WhatsApp Business number</li><li>Import your inventory sheet</li><li>Tune the questions and tone to your firm</li></ul></div></div>
+      <div class="panel"><div class="panel-b"><span class="label">Week 2</span><h3>Connect lead sources</h3><ul><li>Portal and Meta lead forwarding</li><li>Google Calendar for site visits</li><li>Morning briefing to the owner</li></ul></div></div>
+      <div class="panel"><div class="panel-b"><span class="label">Weeks 3–4</span><h3>Pilot</h3><ul><li>Run on live leads with 2 advisors</li><li>Compare reply time and visits booked</li><li>Decide on full rollout</li></ul></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h3>What it's worth to the firm</h3><span class="label">Edit the numbers</span></div>
+      <div class="panel-b roi">
+        <div class="roi-in">
+          <label class="field">New leads per month<input id="roiLeads" type="number" min="0" value="300"></label>
+          <label class="field">Leads that visit today (%)<input id="roiVisit" type="number" min="0" step="0.5" value="6"></label>
+          <label class="field">Visits that close (%)<input id="roiClose" type="number" min="0" step="0.5" value="12"></label>
+          <label class="field">Average deal value (₹ lakh)<input id="roiDeal" type="number" min="0" value="90"></label>
+          <label class="field">Commission (%)<input id="roiComm" type="number" min="0" step="0.25" value="1.5"></label>
+          <label class="field">More visits from instant replies and follow-up (%)<input id="roiLift" type="number" min="0" value="40"></label>
+          <label class="field">Old leads in the database<input id="roiOld" type="number" min="0" value="500"></label>
+          <label class="field">Old leads that come back (%)<input id="roiBack" type="number" min="0" step="0.5" value="3"></label>
+        </div>
+        <div class="roi-out" id="roiOut"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Demo with sample listings and leads. Project names, builders and RERA IDs are illustrative. Agent architecture based on the open-source LangGraph project saminkhan1/real-estate-ai-agent.</footer>
+</main>
+
+<script>
+(function(){
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- money ---------- */
+function inr(n){
+  if (n >= 1e7) return '₹' + (n/1e7).toFixed(2).replace(/\.?0+$/,'') + ' Cr';
+  return '₹' + Math.round(n/1e5) + ' L';
+}
+function emi(price){
+  const P = price*0.8, r = 0.085/12, n = 240;
+  return P*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
+}
+function inrMonthly(v){ return v >= 1e5 ? '₹' + (v/1e5).toFixed(2).replace(/\.?0+$/,'') + ' L' : '₹' + Math.round(v/1000) + 'k'; }
+
+/* ---------- firm name ---------- */
+const firmInput = $('#firmName');
+try { const f = localStorage.getItem('bm-firm-v3'); if (f) firmInput.value = f; } catch(e){}
+const firm = () => firmInput.value.trim() || 'our team';
+firmInput.addEventListener('input', () => { try { localStorage.setItem('bm-firm-v3', firmInput.value); } catch(e){} renderBriefing(); });
+
+/* ---------- inventory (sample) ---------- */
+const INV = [
+ {id:'BLR-101',name:'Aurum Greens',area:'Whitefield',city:'Bengaluru',bhk:3,sqft:1340,price:16200000,rtm:true,poss:'Ready to move',note:'7 min to ITPL',am:['Clubhouse','Pool','2 covered parking'],builder:'Kaveri Developers'},
+ {id:'BLR-102',name:'Lakeview Residency',area:'Whitefield',city:'Bengaluru',bhk:3,sqft:1255,price:14900000,rtm:false,poss:'Possession Jun 2027',note:'Near Kadugodi metro',am:['Gym','Kids play area','1 covered parking'],builder:'Nandi Infra'},
+ {id:'BLR-103',name:'Palm Court',area:'Whitefield (Varthur Rd)',city:'Bengaluru',bhk:3,sqft:1410,price:17800000,rtm:true,poss:'Ready to move',note:'Corner unit, east facing',am:['Clubhouse','Tennis court','2 covered parking'],builder:'Kaveri Developers'},
+ {id:'BLR-104',name:'Sarjapur Heights',area:'Sarjapur Road',city:'Bengaluru',bhk:2,sqft:1050,price:9500000,rtm:false,poss:'Possession Mar 2027',note:'Near Wipro SEZ',am:['Pool','Gym'],builder:'Nandi Infra'},
+ {id:'BLR-105',name:'Hebbal Lakefront',area:'Hebbal',city:'Bengaluru',bhk:3,sqft:1520,price:24500000,rtm:true,poss:'Ready to move',note:'Lake view, 20 min to airport',am:['Clubhouse','Pool','Concierge'],builder:'Deccan Estates'},
+ {id:'BLR-106',name:'Ecity Nest',area:'Electronic City',city:'Bengaluru',bhk:2,sqft:920,price:6800000,rtm:true,poss:'Ready to move',note:'Walk to Infosys campus',am:['Gym','Power backup'],builder:'Deccan Estates'},
+ {id:'PUN-201',name:'Sahyadri Skyline',area:'Hinjewadi Phase 1',city:'Pune',bhk:2,sqft:760,price:7200000,rtm:true,poss:'Ready to move',note:'Rents at ₹24k/month, ~4% yield',am:['Pool','Gym','Co-working lounge'],builder:'Sahyadri Homes'},
+ {id:'PUN-202',name:'Baner Crest',area:'Baner',city:'Pune',bhk:3,sqft:1180,price:14500000,rtm:true,poss:'Ready to move',note:'Hill view, top floor',am:['Clubhouse','Pool'],builder:'Sahyadri Homes'},
+ {id:'PUN-203',name:'Wakad Central',area:'Wakad',city:'Pune',bhk:2,sqft:715,price:7650000,rtm:false,poss:'Possession Dec 2026',note:'Expected rent ₹22k/month',am:['Gym','Jogging track'],builder:'Konkan Realty'},
+ {id:'PUN-204',name:'Kharadi One',area:'Kharadi',city:'Pune',bhk:2,sqft:810,price:8900000,rtm:true,poss:'Ready to move',note:'Near EON IT Park',am:['Pool','Gym'],builder:'Konkan Realty'},
+ {id:'MUM-301',name:'Thane Riverside',area:'Thane West',city:'Mumbai',bhk:2,sqft:690,price:11500000,rtm:true,poss:'Ready to move',note:'5 min to Eastern Express Hwy',am:['Clubhouse','Gym'],builder:'Konkan Realty'},
+ {id:'MUM-302',name:'Powai Vista',area:'Powai',city:'Mumbai',bhk:2,sqft:780,price:24000000,rtm:true,poss:'Ready to move',note:'Lake facing',am:['Pool','Concierge'],builder:'Deccan Estates'},
+ {id:'MUM-303',name:'Kharghar Meadows',area:'Kharghar, Navi Mumbai',city:'Mumbai',bhk:2,sqft:720,price:10500000,rtm:false,poss:'Possession Sep 2027',note:'Near upcoming metro line',am:['Gym','Garden'],builder:'Konkan Realty'},
+ {id:'HYD-401',name:'Gachibowli Towers',area:'Gachibowli',city:'Hyderabad',bhk:3,sqft:1650,price:18500000,rtm:true,poss:'Ready to move',note:'10 min to Financial District',am:['Clubhouse','Pool','2 covered parking'],builder:'Deccan Estates'},
+ {id:'HYD-402',name:'Kondapur Greens',area:'Kondapur',city:'Hyderabad',bhk:2,sqft:1150,price:9800000,rtm:true,poss:'Ready to move',note:'Gated community, 12 acres',am:['Pool','Gym'],builder:'Deccan Estates'},
+ {id:'HYD-403',name:'Kokapet Heights',area:'Kokapet',city:'Hyderabad',bhk:3,sqft:1720,price:21500000,rtm:false,poss:'Possession Dec 2027',note:'Neopolis corridor',am:['Clubhouse','Pool'],builder:'Deccan Estates'},
+ {id:'NOI-501',name:'Yamuna Vista',area:'Sector 150',city:'Noida',bhk:3,sqft:1450,price:16000000,rtm:false,poss:'Possession Oct 2027',note:'Sports city, low density',am:['Golf range','Pool'],builder:'Yamuna Buildcon'},
+ {id:'NOI-502',name:'Expressway Homes',area:'Sector 137',city:'Noida',bhk:2,sqft:980,price:7400000,rtm:true,poss:'Ready to move',note:'Next to metro station',am:['Gym','Power backup'],builder:'Yamuna Buildcon'},
+ {id:'NOI-503',name:'Skyline Avenue',area:'Noida Extension',city:'Noida',bhk:2,sqft:1020,price:5900000,rtm:true,poss:'Ready to move',note:'Good schools nearby',am:['Clubhouse','Kids play area'],builder:'Yamuna Buildcon'},
+ {id:'GGN-601',name:'Aravali Crest',area:'Sector 65',city:'Gurugram',bhk:3,sqft:1800,price:32000000,rtm:false,poss:'Possession Mar 2027',note:'Golf Course Ext Road',am:['Clubhouse','Pool','Concierge'],builder:'Aravali Group'},
+ {id:'GGN-602',name:'Dwarka Gateway',area:'Sector 106',city:'Gurugram',bhk:2,sqft:1100,price:13500000,rtm:true,poss:'Ready to move',note:'Dwarka Expressway, 15 min to airport',am:['Pool','Gym'],builder:'Aravali Group'}
+];
+const STATE_CODE = {Bengaluru:'KA',Pune:'MH',Mumbai:'MH',Hyderabad:'TS',Noida:'UP',Gurugram:'HR'};
+INV.forEach((p,i) => { p.rera = `${STATE_CODE[p.city]}/RERA/PRJ/${(1400+i*37)}/SAMPLE`; });
+
+const LOCALITIES = [
+ [/whitefield|varthur|itpl/,'Whitefield','Bengaluru'],[/sarjapur/,'Sarjapur','Bengaluru'],[/hebbal/,'Hebbal','Bengaluru'],[/electronic city|e-?city/,'Electronic City','Bengaluru'],
+ [/hinjewadi|hinjawadi/,'Hinjewadi','Pune'],[/baner/,'Baner','Pune'],[/wakad/,'Wakad','Pune'],[/kharadi/,'Kharadi','Pune'],
+ [/thane/,'Thane','Mumbai'],[/powai/,'Powai','Mumbai'],[/kharghar|navi mumbai/,'Kharghar','Mumbai'],
+ [/gachibowli/,'Gachibowli','Hyderabad'],[/kondapur/,'Kondapur','Hyderabad'],[/kokapet/,'Kokapet','Hyderabad'],
+ [/sector\s*150/,'Sector 150','Noida'],[/sector\s*137/,'Sector 137','Noida'],[/noida extension|greater noida west/,'Noida Extension','Noida'],
+ [/sector\s*65|golf course/,'Sector 65','Gurugram'],[/dwarka expressway|sector\s*106/,'Sector 106','Gurugram']
+];
+const CITIES = [[/bangalore|bengaluru|blr/,'Bengaluru'],[/pune/,'Pune'],[/mumbai|bombay/,'Mumbai'],[/hyderabad|hyd\b/,'Hyderabad'],[/noida/,'Noida'],[/gurgaon|gurugram/,'Gurugram'],[/delhi|ncr/,'Delhi NCR']];
+
+/* ---------- scenarios ---------- */
+const SCEN = {
+  hot:{name:'Rohan Mehta',phone:'+91 98xxx x4521',src:'Portal enquiry',srcKind:'portal',
+    msgs:['Hi, I saw your listing online. Looking for a 3BHK in Whitefield.','Budget is around 1.5 to 1.8 Cr.','We want to shift within 2 months, ready to move preferred. Home loan is already sanctioned.','Saturday 11 AM works for us.']},
+  nri:{name:'Priya Nair',phone:'+971 5x xxx 7810',src:'Meta lead form',srcKind:'meta',
+    msgs:["Hello! I'm based in Dubai and want to invest in Pune for rental income.",'2BHK, under 80 lakhs.','Planning to close in 3-4 months.','Can we do a video call walkthrough? Sunday evening suits me.']},
+  hinglish:{name:'Website visitor',phone:'Number not shared yet',src:'Website chat',srcKind:'web',
+    msgs:['bhai Noida mein 2bhk chahiye','50-60 lakh tak','abhi bas dekh rahe hain, shayad next year','ok weekend pe ek baar dekh sakte hain']}
+};
+let scenKey = 'hot';
+
+/* ---------- conversation state ---------- */
+let S, runId = 0;
+function freshState(){
+  const sc = SCEN[scenKey];
+  return {lead:{name:sc.name==='Website visitor'?null:sc.name, phone:sc.phone, src:sc.src, srcKind:sc.srcKind,
+      city:null, locality:null, bhk:null, bmin:null, bmax:null, timeline:null, tlScore:0, finance:null, purpose:null, rtm:null, nri:false, visit:false, mode:'site', lang:'en', replies:0},
+    stage:'intake', matches:[], nearOnly:false, slots:[], chosen:null, greeted:false, trace:[], score:null, t0:Date.now()};
+}
+
+/* ---------- parsing ---------- */
+const UNIT = '(cr|crore|crores|l|lac|lacs|lakh|lakhs|k)';
+function toRs(v,u){ v = parseFloat(v); u = (u||'').toLowerCase(); if (u.startsWith('c')) return v*1e7; if (u==='k') return v*1e3; return v*1e5; }
+function parse(text){
+  const t = text.toLowerCase(), up = {};
+  for (const [re,loc,city] of LOCALITIES) if (re.test(t)) { up.locality = loc; up.city = city; break; }
+  if (!up.city) for (const [re,city] of CITIES) if (re.test(t)) { up.city = city; up.locality = null; break; }
+  const bhk = t.match(/(\d)\s*-?\s*(bhk|bed|bedroom)/); if (bhk) up.bhk = +bhk[1];
+  // budget
+  let m = t.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*(?:-|to|–|se)\\s*(\\d+(?:\\.\\d+)?)\\s*'+UNIT+'\\b'));
+  if (m) { up.bmin = toRs(m[1],m[3]); up.bmax = toRs(m[2],m[3]); if (up.bmin > up.bmax) up.bmin = toRs(m[1],'l'); }
+  else {
+    const all = [...t.matchAll(new RegExp('(\\d+(?:\\.\\d+)?)\\s*'+UNIT+'\\b','g'))].map(x => toRs(x[1],x[2])).filter(v => v >= 1e6);
+    if (all.length >= 2) { up.bmin = Math.min(...all); up.bmax = Math.max(...all); }
+    else if (all.length === 1) {
+      const v = all[0];
+      if (/under|below|upto|up to|max|within|tak|less than/.test(t)) { up.bmax = v; up.bmin = v*0.7; }
+      else if (/around|about|approx|lagbhag|~/.test(t)) { up.bmin = v*0.88; up.bmax = v*1.1; }
+      else { up.bmax = v; up.bmin = v*0.75; }
+    }
+  }
+  // timeline
+  let tl = null;
+  if (/immediate|asap|urgent|right away|this month|next month|jaldi|turant|within (a|1|one) month/.test(t)) tl = ['Within 2 months',25];
+  else if (/next year|just looking|exploring|browsing|dekh rahe|no hurry|not sure|abhi nahi/.test(t)) tl = ['Exploring, 12+ months',3];
+  else { const mm = t.match(/(\d+)\s*(?:-|to)?\s*(\d+)?\s*(months?|mahine)/); if (mm) { const n = +(mm[2]||mm[1]); tl = n<=2?['Within 2 months',25]:n<=4?['3–4 months',18]:n<=6?['About 6 months',10]:['6+ months',5]; }
+    else if (/six months|6 months|later this year/.test(t)) tl = ['About 6 months',10]; }
+  if (tl) { up.timeline = tl[0]; up.tlScore = tl[1]; }
+  if (/pre-?approved|sanction|loan (is )?(approved|ready)|cash|self[- ]funded|own funds|full payment|funds (are )?ready/.test(t)) up.finance = 'Ready (loan sanctioned / own funds)';
+  else if (/loan|emi|finance/.test(t) && !/no loan/.test(t)) up.finance = 'Needs home loan';
+  else if (/no loan/.test(t)) up.finance = 'Ready (loan sanctioned / own funds)';
+  if (/invest|rental|rent out|returns|roi|yield/.test(t)) up.purpose = 'Investment';
+  else if (/family|self use|end use|to stay|move in|shift|rehne/.test(t)) up.purpose = 'Self use';
+  if (/ready to move|rtm|ready possession/.test(t)) up.rtm = true; else if (/under construction|new launch/.test(t)) up.rtm = false;
+  if (/\bnri\b|dubai|abroad|usa|\buk\b|singapore|based in|canada|australia/.test(t)) up.nri = true;
+  if (/visit|see (it|them|the)|\bsite\b|show me|tour|walkthrough|video|dekhna|dekh sakte|saturday|sunday|weekend|tomorrow|kal\b/.test(t)) up.visit = true;
+  if (/video|virtual|walkthrough|zoom call/.test(t)) up.mode = 'video';
+  const nm = text.match(/(?:[Mm]y name is|I am|I'm|[Tt]his is|[Mm]era naam)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)/); if (nm) up.name = nm[1];
+  const ph = text.match(/(?:\+91[\s-]?)?[6-9]\d{9}/); if (ph) up.phone = ph[0];
+  if (/\b(chahiye|hai|hain|mein|kya|dikhao|bhai|tak|nahi|haan|kab|accha|acha|dekh|rahe|batao|abhi|shayad|pe|ek)\b/.test(t)) up.lang = 'hi';
+  return up;
+}
+
+/* ---------- search ---------- */
+function search(L){
+  const cityOk = p => L.city === 'Delhi NCR' ? (p.city==='Noida'||p.city==='Gurugram') : p.city === L.city;
+  let pool = INV.filter(p => cityOk(p) && (!L.bhk || p.bhk === L.bhk));
+  const inLoc = L.locality ? pool.filter(p => p.area.toLowerCase().includes(L.locality.toLowerCase())) : [];
+  if (inLoc.length) pool = inLoc;
+  const max = L.bmax || Infinity;
+  let within = pool.filter(p => p.price <= max*1.05);
+  let nearOnly = false;
+  if (!within.length) { within = pool.slice().sort((a,b) => a.price-b.price).slice(0,2); nearOnly = true; }
+  const mid = L.bmin && L.bmax ? (L.bmin+L.bmax)/2 : max;
+  within.sort((a,b) => (L.rtm ? (b.rtm-a.rtm) : 0) || Math.abs(a.price-mid) - Math.abs(b.price-mid));
+  return {list: within.slice(0,3), nearOnly, poolSize: INV.length};
+}
+
+/* ---------- scoring ---------- */
+function score(st){
+  const L = st.lead, f = [];
+  f.push({k:'Timeline',max:25,v:L.tlScore||0,note:L.timeline||'Not asked yet'});
+  let bf = 0, bn = 'Not shared';
+  if (L.bmax){ if (st.matches.length && !st.nearOnly){bf=20;bn='Inventory available in budget';} else if (st.matches.length){bf=10;bn='Nearest options slightly above budget';} else {bf=8;bn=`${inr(L.bmin||L.bmax*0.75)}–${inr(L.bmax)}`;} }
+  f.push({k:'Budget fit',max:20,v:bf,note:bn});
+  const fin = L.finance ? (L.finance.startsWith('Ready')?15:9) : 3;
+  f.push({k:'Financing',max:15,v:fin,note:L.finance||'Unknown'});
+  let it = 0; const itn = [];
+  if (L.visit){it+=8;itn.push(L.mode==='video'?'asked for video tour':'asked for a visit');}
+  if (L.locality){it+=4;itn.push('specific locality');} else if (L.city){it+=2;itn.push('city only');}
+  if (L.bhk){it+=3;} if (L.rtm!==null||L.purpose){it+=3;}
+  f.push({k:'Buying intent',max:20,v:Math.min(20,it),note:itn.join(', ')||'No signals yet'});
+  const hasNum = !(L.srcKind==='web' && !/^\+|\d{10}/.test(L.phone));
+  const c = (hasNum ? 5 : 1) + (L.name ? 3 : 0);
+  f.push({k:'Contact info',max:10,v:c,note:(hasNum?'Verified number':'No number yet')+(L.name?' + name':'')+', no email yet'});
+  const e = Math.min(10, L.replies*2);
+  f.push({k:'Engagement',max:10,v:e,note:`${L.replies} repl${L.replies===1?'y':'ies'}, quick responses`});
+  const total = Math.round(f.reduce((a,x)=>a+x.v,0));
+  const band = L.replies === 0 ? 'New' : total>=75?'Hot':total>=50?'Warm':'Cold';
+  return {total, band, f};
+}
+
+/* ---------- slots ---------- */
+const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function nextDow(d){ const x = new Date(); x.setHours(0,0,0,0); let add = (d - x.getDay() + 7) % 7; if (add === 0) add = 7; x.setDate(x.getDate()+add); return x; }
+function tomorrow(){ const x = new Date(); x.setHours(0,0,0,0); x.setDate(x.getDate()+1); return x; }
+function mk(date,h,m){ const d = new Date(date); d.setHours(h,m||0); return d; }
+function fmtSlot(d){ const h = d.getHours(), m = d.getMinutes(); const hh = ((h+11)%12)+1; return `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}, ${hh}:${String(m).padStart(2,'0')} ${h<12?'AM':'PM'}`; }
+function makeSlots(mode){
+  return mode === 'video' ? [mk(tomorrow(),19,0), mk(nextDow(6),10,30), mk(nextDow(0),18,0)] : [mk(nextDow(6),11,0), mk(nextDow(6),16,0), mk(nextDow(0),11,30)];
+}
+function pickSlot(text, slots){
+  const t = text.toLowerCase();
+  const dayMap = {sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6,ravivar:0,shanivar:6};
+  let day = null; for (const k in dayMap) if (t.includes(k)) { day = dayMap[k]; break; }
+  if (/tomorrow|kal\b/.test(t)) day = tomorrow().getDay();
+  let cand = slots.filter(s => day===null || s.getDay()===day);
+  const hm = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  if (hm && cand.length) { let h = +hm[1]; if (hm[3]==='pm' && h<12) h+=12; if (!hm[3] && h<8) h+=12; const c2 = cand.filter(s => s.getHours()===h); if (c2.length) return c2[0]; }
+  if (/evening|shaam|pm/.test(t)) { const c3 = cand.filter(s => s.getHours()>=16); if (c3.length) return c3[0]; }
+  if (/morning|subah/.test(t)) { const c3 = cand.filter(s => s.getHours()<13); if (c3.length) return c3[0]; }
+  if (day !== null && cand.length) return cand[0];
+  const n = t.match(/\b([123])\b|first|second|third|pehla|dusra/);
+  if (n) { const i = n[1] ? +n[1]-1 : /second|dusra/.test(t)?1:/third/.test(t)?2:0; return slots[i]; }
+  if (/\b(yes|ok|okay|haan|sure|works|fine|done|chalega|theek)\b/.test(t)) return slots[0];
+  return null;
+}
+
+/* ---------- agent brain ---------- */
+const hi = () => S.lead.lang === 'hi';
+const Lx = (en, h) => hi() ? h : en;
+function critLine(L){ const parts = []; if (L.bhk) parts.push(L.bhk+'BHK'); if (L.locality||L.city) parts.push((hi()?'':'in ')+(L.locality||L.city)); if (L.bmax) parts.push(`${inr(L.bmin||L.bmax*0.75)}–${inr(L.bmax)}`); return parts.join(' '); }
+function propLines(list){ return list.map((p,i) => ({title:`${i+1}. ${p.name}, ${p.area}`, sub:`${p.bhk}BHK · ${p.sqft.toLocaleString('en-IN')} sq ft carpet · ${inr(p.price)} · ${p.rtm?'Ready to move':p.poss}`})); }
+
+function addTrace(node, det, opts){ S.trace.push(Object.assign({node, det, ms: 120 + Math.round(Math.random()*500)}, opts||{})); }
+
+function agentTurn(text, forced){
+  const L = S.lead, up = parse(text);
+  const before = {city:L.city, bhk:L.bhk, bmax:L.bmax, timeline:L.timeline};
+  if (up.lang) L.lang = 'hi';
+  delete up.lang;
+  for (const k in up) if (up[k] !== undefined && up[k] !== null) L[k] = up[k];
+  if ('locality' in up && up.locality === null) L.locality = null;
+  if (L.nri) L.mode = 'video';
+  L.replies++;
+  addTrace('channel.whatsapp', `Inbound from ${L.src}`, {cls:'in'});
+  const changed = (L.city!==before.city)||(L.bhk!==before.bhk)||(L.bmax!==before.bmax);
+  const out = [];
+
+  // stage-specific handling
+  if (S.stage === 'pending') {
+    addTrace('main_agent','Booking awaiting broker approval, holding');
+    out.push({text: Lx(`Noted! Your request for ${fmtSlot(S.chosen)} is with ${firm()}'s advisor. I'll confirm here in a few minutes.`, `Noted ji! ${fmtSlot(S.chosen)} ki request ${firm()} ke advisor ke paas hai. Kuch hi minute mein yahin confirm karti hoon.`)});
+    return finish(out);
+  }
+  if (S.stage === 'booked') {
+    addTrace('main_agent','Visit already confirmed, answered follow-up');
+    out.push({text: Lx(`You're all set for ${fmtSlot(S.chosen)}. I'll send a reminder with the location pin the evening before. Anything else I can help with?`, `Aapka visit ${fmtSlot(S.chosen)} ko confirm hai. Ek din pehle shaam ko location pin ke saath reminder bhej dungi.`)});
+    return finish(out);
+  }
+  if (S.stage === 'slot_offered' && !changed) {
+    const s = forced || pickSlot(text, S.slots);
+    if (s) return chooseSlot(s, out);
+  }
+  if (/amenit|parking|club|gym|pool/.test(text.toLowerCase()) && S.matches.length) {
+    const p = S.matches[0];
+    addTrace('query_database',`Looked up amenities for ${p.id}`);
+    out.push({text: `${p.name} has ${p.am.join(', ').toLowerCase()}. ${p.note}.`});
+    return finish(out);
+  }
+  if (/\b(loan|emi)\b/.test(text.toLowerCase()) && S.matches.length && !up.finance) {
+    const p = S.matches[0];
+    addTrace('main_agent','Computed EMI estimate');
+    out.push({text: Lx(`For ${p.name} at ${inr(p.price)}, an 80% home loan at 8.5% over 20 years comes to about ${inrMonthly(emi(p.price))} a month. We work with partner banks and can get you a sanction letter quickly.`, `${p.name} (${inr(p.price)}) ke liye 80% loan, 8.5% par 20 saal: EMI lagbhag ${inrMonthly(emi(p.price))} mahina. Partner banks se sanction jaldi ho jaata hai.`)});
+    return finish(out);
+  }
+
+  // greeting
+  let pre = '';
+  if (!S.greeted) {
+    S.greeted = true;
+    pre = Lx(`Namaste${L.name ? ' ' + L.name.split(' ')[0] : ''}! I'm Riya, the assistant at ${firm()}. `, `Namaste ji! Main Riya, ${firm()} se. `);
+  }
+
+  const missing = [];
+  if (!L.city) missing.push('location'); if (!L.bhk) missing.push('bhk'); if (!L.bmax) missing.push('budget'); if (!L.timeline) missing.push('timeline');
+
+  if (Object.keys(up).length) addTrace('search_criteria_agent','Updated search criteria', {json: criteriaJSON()});
+
+  if (missing.length && S.stage === 'intake') {
+    const got = critLine(L);
+    const ack = Object.keys(up).length && got ? Lx(`Got it: ${got}. `, `Theek hai: ${got}. `) : (pre ? '' : Lx("Sorry, I didn't quite catch that. ", 'Maaf kijiye, samjhi nahi. '));
+    const Q = {
+      location: Lx('Which city or locality are you looking in?','Kaunse city ya area mein dekh rahe hain?'),
+      bhk: Lx('How many bedrooms do you need: 2BHK, 3BHK?','Kitne BHK chahiye: 2BHK ya 3BHK?'),
+      budget: Lx('What budget should I search within? A rough range is fine, like 90 L–1.1 Cr.','Budget kitna rakha hai? Rough idea bhi chalega, jaise 50–60 lakh.'),
+      timeline: Lx('And when are you hoping to move in or close the deal?','Aur kab tak lena hai: jaldi, ya abhi sirf dekh rahe hain?')
+    };
+    addTrace('main_agent', `Asked for ${missing[0]}`);
+    out.push({text: pre + ack + Q[missing[0]]});
+    return finish(out);
+  }
+
+  // have everything: search (or re-search on change)
+  if (S.stage === 'intake' || changed) {
+    addTrace('main_agent','Requirement complete → search_criteria_agent');
+    const r = search(L); S.matches = r.list; S.nearOnly = r.nearOnly;
+    addTrace('query_database', `${r.list.length} of ${r.poolSize} listings matched${r.nearOnly?' (nearest above budget)':''}`, {json: r.list.map(p => `${p.id}  ${p.name}  ${inr(p.price)}`).join('\n')});
+    S.score = score(S);
+    addTrace('lead_scorer', `Score ${S.score.total} · ${S.score.band}`, {cls:'score'});
+    const intro = S.nearOnly
+      ? Lx(`Nothing exactly in that budget right now, but these are the closest options for ${critLine(L)}:`, `Exact budget mein abhi kuch nahi hai, par ye sabse paas ke options hain:`)
+      : Lx(`Here ${S.matches.length===1?'is the option':'are '+S.matches.length+' options'} that fit ${critLine(L)}:`, `Aapke liye ${S.matches.length} option${S.matches.length>1?'s':''} mile (${critLine(L)}):`);
+    const props = propLines(S.matches);
+    if (S.score.band === 'Cold' && !L.visit) {
+      S.stage = 'nurture';
+      addTrace('main_agent','Low urgency → added to weekly nurture list');
+      out.push({text: pre + intro, props});
+      out.push({text: Lx(`No rush at all. I'll send you a short list of new options every Monday. Whenever you want to see one in person, just type "visit".`, `Koi jaldi nahi hai. Main har Monday aapko naye options bhej dungi. Jab site dekhni ho, bas "visit" likh dena.`)});
+      return finish(out);
+    }
+    if (L.purpose === 'Investment' && S.matches[0]) out.push({text: pre + intro, props, extra: Lx(`${S.matches[0].name}: ${S.matches[0].note}.`, '')});
+    else out.push({text: pre + intro, props});
+    return offerSlots(out);
+  }
+
+  if (S.stage === 'nurture' && L.visit) { addTrace('main_agent','Lead asked to visit → appointment_agent'); S.score = score(S); return offerSlots(out); }
+  if (S.stage === 'slot_offered') {
+    addTrace('main_agent','Slot not recognised, re-asked');
+    out.push({text: Lx('Which of these works for you? Or tell me another day and time.', 'Inme se kaunsa time theek rahega? Ya koi aur din bata dijiye.'), slots: S.slots});
+    return finish(out);
+  }
+  addTrace('main_agent','General reply');
+  out.push({text: Lx('Happy to help. Would you like to see any of these in person?', 'Zaroor. Kya aap inme se koi site dekhna chahenge?')});
+  return finish(out);
+}
+
+function offerSlots(out){
+  const L = S.lead;
+  S.slots = makeSlots(L.mode); S.stage = 'slot_offered';
+  addTrace('appointment_agent', `Checked calendar, offered ${S.slots.length} ${L.mode==='video'?'video tour':'site visit'} slots`);
+  const msg = L.mode === 'video'
+    ? Lx(`I can set up a live video walkthrough with our site manager. Times are in IST${L.nri?' (Dubai is 1.5 hrs behind)':''}:`, 'Hamare site manager ke saath live video walkthrough kar sakte hain. Time (IST):')
+    : L.visit
+      ? Lx('Sure! I can hold one of these site visit slots:', 'Bilkul! Site visit ke liye ye slots khaali hain:')
+      : Lx('Would you like to see them in person? I can hold one of these slots:', 'Kya aap site visit karna chahenge? Ye slots khaali hain:');
+  out.push({text: msg, slots: S.slots});
+  return finish(out);
+}
+
+function chooseSlot(s, out){
+  S.chosen = s; S.stage = 'pending'; S.lead.visit = true;
+  const props = S.matches.slice(0,2).map(p => p.name).join(' and ');
+  addTrace('appointment_agent', `Lead chose ${fmtSlot(s)}`);
+  addTrace('sensitive_appointment_tools', 'Paused: waiting for broker approval before booking', {cls:'pause'});
+  addTrace('notify.broker', 'Approval request sent to broker on WhatsApp');
+  S.score = score(S);
+  out.push({text: Lx(`Done. I've requested ${fmtSlot(s)} for ${props} with ${firm()}'s advisor. You'll get a confirmation here shortly.`, `Ho gaya! ${fmtSlot(s)} ke liye ${props} ka visit request kar diya hai. Thodi der mein yahin confirmation aa jayega.`)});
+  return finish(out);
+}
+
+function finish(out){ S.score = score(S); return out; }
+
+function criteriaJSON(){
+  const L = S.lead, o = {};
+  if (L.city) o.city = L.city; if (L.locality) o.locality = L.locality; if (L.bhk) o.bhk = L.bhk;
+  if (L.bmax) { o.min_price = Math.round(L.bmin||L.bmax*0.75); o.max_price = Math.round(L.bmax); }
+  if (L.timeline) o.timeline = L.timeline; if (L.finance) o.financing = L.finance; if (L.purpose) o.purpose = L.purpose; if (L.rtm !== null) o.ready_to_move = L.rtm; if (L.nri) o.nri = true;
+  return JSON.stringify(o, null, 1).replace(/\n\s*/g,' ');
+}
+
+/* ---------- rendering ---------- */
+const msgsEl = $('#msgs');
+function now(){ const d = new Date(); return d.toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'}); }
+function addBubble(who, m){
+  const el = document.createElement('div');
+  el.className = 'b ' + who;
+  let html = esc(m.text);
+  if (m.props && m.props.length) html += '<div class="props">' + m.props.map(p => `<div class="pp"><b>${esc(p.title)}</b><div>${esc(p.sub)}</div></div>`).join('') + '</div>';
+  if (m.extra) html += '\n' + esc(m.extra);
+  if (m.slots) html += '<div class="slots">' + m.slots.map((s,i) => `<button type="button" data-slot="${i}">${esc(fmtSlot(s))}</button>`).join('') + '</div>';
+  html += `<span class="t">${now()}${who==='agent'?' ✓✓':''}</span>`;
+  el.innerHTML = html;
+  msgsEl.appendChild(el); msgsEl.scrollTop = msgsEl.scrollHeight;
+}
+function addSys(text){ const el = document.createElement('div'); el.className = 'sys'; el.textContent = text; msgsEl.appendChild(el); msgsEl.scrollTop = msgsEl.scrollHeight; }
+function typing(on){
+  let el = msgsEl.querySelector('.typing');
+  if (on && !el) { el = document.createElement('div'); el.className = 'typing'; el.innerHTML = '<i></i><i></i><i></i>'; msgsEl.appendChild(el); msgsEl.scrollTop = msgsEl.scrollHeight; }
+  if (!on && el) el.remove();
+}
+msgsEl.addEventListener('click', e => {
+  const b = e.target.closest('button[data-slot]'); if (!b || busy) return;
+  if (S.stage !== 'slot_offered') return;
+  const s = S.slots[+b.dataset.slot]; send(fmtSlot(s) + ' works for me', s);
+});
+
+function renderCrit(){
+  const L = S.lead;
+  const items = [['Location', L.locality ? `${L.locality}, ${L.city}` : L.city], ['Config', L.bhk ? L.bhk+'BHK' : null], ['Budget', L.bmax ? `${inr(L.bmin||L.bmax*0.75)}–${inr(L.bmax)}` : null], ['Timeline', L.timeline], ['Financing', L.finance], ['Purpose', L.purpose], ['Possession', L.rtm===true?'Ready to move':L.rtm===false?'Under construction OK':null], ['Language', L.replies ? (L.lang==='hi'?'Hinglish':'English') : null]];
+  $('#crit').innerHTML = items.map(([k,v]) => v ? `<span>${k}: <b>${esc(v)}</b></span>` : (['Location','Config','Budget','Timeline'].includes(k) ? `<span class="miss">${k}: ?</span>` : '')).join('');
+}
+function renderTrace(){
+  const el = $('#trace');
+  if (!S.trace.length) { el.innerHTML = '<li style="display:block"><div class="empty">Each step the agent takes shows up here.</div></li>'; return; }
+  el.innerHTML = S.trace.map(x => `<li class="${x.cls||''}"><span class="dot"></span><div><div class="node">${esc(x.node)} <em>${x.ms} ms</em></div><div class="det">${esc(x.det)}</div>${x.json?`<pre>${esc(x.json)}</pre>`:''}</div></li>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+function renderScore(){
+  const sc = S.score || score(S), L = S.lead;
+  $('#scoreNum').textContent = sc.total;
+  const arc = $('#gaugeArc'); arc.style.strokeDashoffset = 263.9 * (1 - sc.total/100);
+  arc.style.stroke = sc.band==='Hot'?'var(--hot)':sc.band==='Warm'?'var(--warm)':sc.band==='Cold'?'var(--cold)':'var(--muted)';
+  $('#scoreName').textContent = L.name || 'Website visitor';
+  const band = $('#scoreBand'); band.className = 'pill ' + sc.band; band.textContent = sc.band === 'New' ? 'New lead' : sc.band + ' lead';
+  const act = {New:'Waiting for the first message', Hot:'Call within the hour. Agent is booking a visit.', Warm:'Agent is nurturing and offering visits.', Cold:'Added to weekly nurture. Agent will follow up.'};
+  $('#scoreAction').textContent = S.stage==='pending' ? 'Visit requested. Approve below.' : S.stage==='booked' ? 'Visit confirmed and on your calendar.' : act[sc.band];
+  $('#factors').innerHTML = sc.f.map(x => `<div class="factor"><span>${x.k}</span><span class="bar"><i style="width:${x.v/x.max*100}%"></i></span><span class="n">${x.v}/${x.max}</span><small>${esc(x.note)}</small></div>`).join('');
+}
+function renderProps(){
+  const el = $('#props');
+  $('#matchCount').textContent = S.matches.length ? `${S.matches.length} of ${INV.length} listings` : '—';
+  if (!S.matches.length) { el.innerHTML = '<div class="empty">Matches appear once the agent knows location, BHK and budget.</div>'; return; }
+  el.innerHTML = S.matches.map(p => {
+    const over = S.lead.bmax && p.price > S.lead.bmax*1.05;
+    return `<div class="prop"><div class="prop-top"><b>${esc(p.name)}</b><span class="price num">${inr(p.price)}</span></div>
+      <div class="row"><span>${esc(p.area)}, ${p.city}</span><span>${p.bhk}BHK · ${p.sqft.toLocaleString('en-IN')} sq ft carpet</span><span class="num">₹${Math.round(p.price/p.sqft).toLocaleString('en-IN')}/sq ft</span></div>
+      <div class="row"><span class="tag ${p.rtm?'':'uc'}">${esc(p.rtm?'Ready to move':p.poss)}</span>${over?'<span class="tag over">Above budget</span>':''}<span>EMI ≈ ${inrMonthly(emi(p.price))}/mo</span><span>${esc(p.note)}</span></div>
+      <span class="rera">RERA ${esc(p.rera)} · ${esc(p.builder)}</span></div>`;
+  }).join('');
+}
+function renderAppt(){
+  const el = $('#apptBox'), L = S.lead;
+  if (S.stage === 'pending') {
+    el.innerHTML = `<div class="appt"><h4>${L.mode==='video'?'Video walkthrough':'Site visit'} · ${esc(fmtSlot(S.chosen))}</h4>
+      <div class="muted" style="font-size:12.5px">${esc(L.name||'Website visitor')} · ${esc(S.matches.slice(0,2).map(p=>p.name).join(', '))}<br>Score ${S.score.total} (${S.score.band}) · ${esc(critLine(L))}</div>
+      <div class="acts"><button class="btn" id="approveBtn">Approve and confirm</button><button class="btn ghost" id="altBtn">Offer another time</button></div></div>`;
+  } else if (S.stage === 'booked') {
+    el.innerHTML = `<div class="appt done"><h4>Confirmed · ${esc(fmtSlot(S.chosen))}</h4><div class="muted" style="font-size:12.5px">Added to Google Calendar. Advisor Karan assigned. Reminder goes out the evening before.</div></div>`;
+  } else if (S.stage === 'slot_offered') {
+    el.innerHTML = `<div class="empty">Agent offered ${S.slots.length} slots. Waiting for the customer to pick one.</div>`;
+  } else el.innerHTML = '<div class="empty">No visit requested yet.</div>';
+}
+function renderAll(){ renderCrit(); renderTrace(); renderScore(); renderProps(); renderAppt(); renderLeads(); renderBriefing(); }
+
+document.addEventListener('click', async e => {
+  if (e.target.id === 'approveBtn') {
+    S.stage = 'booked';
+    addTrace('broker_approval','Approved by broker (1 tap)');
+    addTrace('sensitive_appointment_tools','Created calendar event, assigned advisor');
+    const my = runId;
+    renderAll(); typing(true); await sleep(900); if (my !== runId) return; typing(false);
+    const p = S.matches[0];
+    addBubble('agent', {text: S.lead.mode==='video'
+      ? Lx(`Confirmed: video walkthrough on ${fmtSlot(S.chosen)} IST. Our site manager will cover ${S.matches.slice(0,2).map(x=>x.name).join(' and ')}. I'll share the call link 30 minutes before.`, `Confirm ho gaya: ${fmtSlot(S.chosen)} ko video walkthrough. Call link 30 minute pehle bhej dungi.`)
+      : Lx(`Confirmed: ${fmtSlot(S.chosen)}. Our advisor Karan will meet you at ${p.name}, ${p.area}. I'll send the location pin and a reminder the evening before.`, `Confirm ho gaya: ${fmtSlot(S.chosen)}. Hamare advisor Karan aapko ${p.name}, ${p.area} par milenge. Ek din pehle location pin aur reminder bhej dungi.`)});
+    addSys('Calendar invite sent · Broker notified');
+    renderAll();
+  }
+  if (e.target.id === 'altBtn') {
+    S.stage = 'slot_offered';
+    S.slots = S.slots.filter(s => s.getTime() !== S.chosen.getTime());
+    addTrace('broker_approval','Broker asked for a different time');
+    const my = runId; renderAll(); typing(true); await sleep(900); if (my !== runId) return; typing(false);
+    addBubble('agent', {text: Lx('Sorry, our advisor is booked at that time. Would one of these work instead?', 'Maaf kijiye, us time advisor available nahi hain. Kya inme se koi time chalega?'), slots: S.slots});
+    renderAll();
+  }
+});
+
+/* ---------- send ---------- */
+let busy = false;
+async function send(text, forced){
+  if (!text.trim() || busy) return;
+  busy = true; const my = runId;
+  addBubble('lead', {text});
+  const out = agentTurn(text, forced);
+  await sleep(350); if (my !== runId) { busy = false; return; }
+  typing(true);
+  for (let i = 0; i < out.length; i++) {
+    await sleep(800 + Math.min(900, out[i].text.length*6)); if (my !== runId) { busy = false; return; }
+    typing(false); addBubble('agent', out[i]);
+    if (i < out.length-1) typing(true);
+  }
+  renderAll();
+  busy = false;
+}
+$('#composer').addEventListener('submit', e => { e.preventDefault(); const v = $('#chatInput').value; $('#chatInput').value = ''; send(v); });
+
+/* ---------- scenarios ---------- */
+function loadScenario(k){
+  runId++; busy = false; scenKey = k; S = freshState();
+  const sc = SCEN[k];
+  $$('[data-scen]').forEach(b => b.setAttribute('aria-pressed', b.dataset.scen===k));
+  $('#leadName').textContent = sc.name; $('#leadPhone').textContent = sc.phone; $('#leadSrc').textContent = sc.src;
+  $('#leadAvatar').textContent = sc.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  msgsEl.innerHTML = '<div class="day">Today</div>';
+  addSys(`New lead from ${sc.src}. Agent replies automatically.`);
+  $('#playBtn').disabled = false; $('#playBtn').textContent = 'Play scenario';
+  renderAll();
+}
+$$('[data-scen]').forEach(b => b.addEventListener('click', () => loadScenario(b.dataset.scen)));
+$('#resetBtn').addEventListener('click', () => loadScenario(scenKey));
+$('#playBtn').addEventListener('click', async () => {
+  loadScenario(scenKey);
+  const my = runId; const btn = $('#playBtn'); btn.disabled = true; btn.textContent = 'Playing…';
+  for (const m of SCEN[scenKey].msgs) {
+    await sleep(1300); if (my !== runId) return;
+    await send(m); if (my !== runId) return;
+    if (S.stage === 'nurture' && scenKey === 'hinglish' && m === SCEN.hinglish.msgs[2]) await sleep(1500);
+  }
+  if (my === runId) { btn.disabled = false; btn.textContent = 'Play again'; }
+});
+
+/* ---------- leads tab ---------- */
+const LEADS = [
+ {n:'Ankit & Shruti Rao',src:'Portal enquiry',req:'3BHK · Hebbal, Bengaluru',bud:'₹2.2–2.6 Cr',s:91,stage:'Visit Sat 11:30 AM',next:'Reminder Friday 7 PM'},
+ {n:'Vikram Singh',src:'Missed call',req:'3BHK · Sector 65, Gurugram',bud:'₹2.8–3.3 Cr',s:84,stage:'Visit requested',next:'Waiting for your approval'},
+ {n:'Meera Iyer',src:'Website chat',req:'2BHK · Kondapur, Hyderabad',bud:'₹90 L–1 Cr',s:78,stage:'Shortlist sent',next:'Offer visit slots tomorrow 10 AM'},
+ {n:'Farhan Qureshi',src:'Meta lead form',req:'2BHK · Thane West, Mumbai',bud:'₹1–1.2 Cr',s:71,stage:'Qualifying',next:'Ask about home loan status'},
+ {n:'Deepa Kulkarni',src:'Referral',req:'3BHK · Baner, Pune',bud:'₹1.3–1.4 Cr',s:68,stage:'Price-drop alert sent',next:'Follow up on Baner Crest'},
+ {n:'Rahul Verma (NRI, Singapore)',src:'Portal enquiry',req:'2BHK · Kharadi, Pune',bud:'₹80–90 L',s:64,stage:'Video tour done',next:'Send payment plan PDF'},
+ {n:'Sneha Patil',src:'Meta lead form',req:'2BHK · Kharghar, Navi Mumbai',bud:'₹95 L–1.05 Cr',s:55,stage:'Nurture',next:'Monday shortlist'},
+ {n:'Gaurav Jain',src:'Website chat',req:'2BHK · Sector 137, Noida',bud:'₹65–75 L',s:47,stage:'Nurture',next:'Monday shortlist'},
+ {n:'Kavya Reddy',src:'Missed call',req:'3BHK · Gachibowli, Hyderabad',bud:'Not shared',s:33,stage:'No reply 2 days',next:'Second nudge at 6 PM'},
+ {n:'Suresh Menon',src:'Portal enquiry',req:'Plot · Sarjapur, Bengaluru',bud:'₹60 L',s:22,stage:'Not a fit',next:'Refer to plots partner'}
+];
+const band = s => s>=75?'Hot':s>=50?'Warm':'Cold';
+let leadFilter = 'all';
+function liveLead(){
+  if (!S || !S.lead.replies) return null;
+  const L = S.lead, sc = S.score || score(S);
+  const stage = {intake:'Qualifying',slot_offered:'Visit slots offered',pending:'Visit requested',booked:'Visit '+(S.chosen?fmtSlot(S.chosen):''),nurture:'Nurture',matched:'Shortlist sent'}[S.stage];
+  const next = {intake:'Finish qualification',slot_offered:'Wait for slot choice',pending:'Waiting for your approval',booked:'Reminder evening before',nurture:'Monday shortlist',matched:'Offer visit'}[S.stage];
+  return {n:L.name||'Website visitor',src:L.src,req:`${L.bhk?L.bhk+'BHK · ':''}${L.locality?L.locality+', ':''}${L.city||'?'}`,bud:L.bmax?`${inr(L.bmin||L.bmax*0.75)}–${inr(L.bmax)}`:'Not shared',s:sc.total,stage,next,live:true};
+}
+function renderLeads(){
+  const live = liveLead(); const rows = (live ? [live] : []).concat(LEADS).filter(r => leadFilter==='all' || band(r.s)===leadFilter);
+  $('#leadRows').innerHTML = rows.map(r => `<tr class="${r.live?'live':''}"><td><b>${esc(r.n)}</b>${r.live?'<span class="livetag">LIVE</span>':''}</td><td>${esc(r.src)}</td><td>${esc(r.req)}</td><td class="num">${esc(r.bud)}</td>
+    <td><div class="sbar"><span class="pill ${band(r.s)}">${r.s}</span></div></td><td>${esc(r.stage)}</td><td class="muted">${esc(r.next)}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">No leads in this band.</td></tr>';
+  const hot = LEADS.filter(r=>r.s>=75).length + 15 + (live && live.s>=75 ? 1 : 0);
+  $('#kpiHot').textContent = hot;
+  $('#kpiVisits').textContent = 23 + (S && S.stage==='booked' ? 1 : 0);
+}
+$$('[data-f]').forEach(b => b.addEventListener('click', () => { leadFilter = b.dataset.f; $$('[data-f]').forEach(x => x.setAttribute('aria-pressed', x===b)); renderLeads(); }));
+const MIX = [['Property portals',41,'var(--brand)'],['Meta / Instagram ads',27,'var(--accent)'],['Website chat',14,'var(--cold)'],['Missed-call number',10,'var(--hot)'],['Referrals',8,'var(--muted)']];
+$('#mix').innerHTML = MIX.map(m => `<i style="width:${m[1]}%;background:${m[2]}" title="${m[0]} ${m[1]}%"></i>`).join('');
+$('#mixLegend').innerHTML = MIX.map(m => `<span><i style="background:${m[2]}"></i>${m[0]} · <b class="num">${m[1]}%</b></span>`).join('');
+
+/* ---------- briefing ---------- */
+function renderBriefing(){
+  const t = tomorrow(); const day = `${DOW[t.getDay()]}, ${t.getDate()} ${MON[t.getMonth()]}`;
+  const live = liveLead();
+  const callFirst = [];
+  if (live && live.s >= 60) callFirst.push(`${live.n}: ${live.req}, ${live.bud}. Score ${live.s}.`);
+  callFirst.push('Ankit & Shruti Rao: 3BHK Hebbal, ₹2.2–2.6 Cr. Score 91.', 'Vikram Singh: 3BHK Sector 65, ₹2.8–3.3 Cr. Visit waiting for your approval.');
+  const visits = ['11:30 AM · Ankit & Shruti Rao · Hebbal Lakefront', '4:00 PM · Meera Iyer · Kondapur Greens (video)'];
+  const msgs = [
+    `Good morning! Here's your day at ${firm()} (${day}).\n\nNew leads overnight: 9 (3 hot). All of them got a reply within a minute.`,
+    `Call these first:\n• ${callFirst.slice(0,3).join('\n• ')}`,
+    `Site visits today:\n• ${visits.join('\n• ')}${S && S.stage==='booked' ? `\n\nNew booking: ${fmtSlot(S.chosen)} · ${S.lead.name||'Website visitor'} · ${S.matches[0].name}` : ''}`,
+    `New listing Kharadi One (2BHK, ₹89 L) matches 4 old leads. Reply SEND and I'll share it with them.`,
+    `Price drop: Baner Crest is now ₹1.39 Cr (was ₹1.45 Cr). 6 leads in that budget. Reply SEND to notify them.`
+  ];
+  $('#briefMsgs').innerHTML = '<div class="day">Today, 8:30 AM</div>' + msgs.map(m => `<div class="b lead">${esc(m)}<span class="t">8:30 am</span></div>`).join('');
+  const cal = [
+    {d:nextDow(6),h:'11:00 AM',who:'Ankit & Shruti Rao',where:'Hebbal Lakefront, Hebbal',s:91},
+    {d:nextDow(6),h:'3:30 PM',who:'Deepa Kulkarni',where:'Baner Crest, Baner',s:68},
+    {d:nextDow(0),h:'12:00 PM',who:'Vikram Singh',where:'Aravali Crest, Sector 65',s:84},
+    {d:tomorrow(),h:'4:00 PM',who:'Meera Iyer',where:'Kondapur Greens (video)',s:78}
+  ];
+  if (S && S.stage === 'booked') cal.push({d:S.chosen,h:fmtSlot(S.chosen).split(', ')[1],who:S.lead.name||'Website visitor',where:`${S.matches[0].name}${S.lead.mode==='video'?' (video)':', '+S.matches[0].area}`,s:S.score.total,live:true});
+  cal.sort((a,b) => a.d - b.d);
+  $('#cal').innerHTML = cal.map(c => `<div class="cal-item ${c.live?'live':''}"><div class="when">${DOW[c.d.getDay()]} ${c.d.getDate()} ${MON[c.d.getMonth()]}<span>${esc(c.h)}</span></div><div style="min-width:0"><b>${esc(c.who)}</b>${c.live?'<span class="livetag">NEW</span>':''}<div class="muted" style="font-size:12.5px">${esc(c.where)}</div></div><span class="pill ${band(c.s)}">${c.s}</span></div>`).join('');
+}
+
+/* ---------- lead manager ---------- */
+const ADV = ['Karan','Neha','Arjun'];
+const SEGS = [['Hot','var(--hot)'],['Warm','var(--warm)'],['Nurture','var(--cold)'],['Dead','var(--line)']];
+const M = {leads:[], raw:0, dupes:0, invalid:0, seg:'all', adv:'all', q:'', page:0, label:'Sample data', fresh:null, nextId:1, pending:null};
+const PER = 20;
+const maskPhone = d => d ? `+91 ${d.slice(0,2)}xxx x${d.slice(-4)}` : 'No valid number';
+const fullPhone = d => d ? `+91 ${d.slice(0,5)} ${d.slice(5)}` : '—';
+const daysAgo = d => d ? Math.max(0, Math.round((Date.now() - d.getTime())/864e5)) : null;
+const agoText = n => n == null ? 'Unknown' : n === 0 ? 'Today' : n === 1 ? 'Yesterday' : n < 60 ? `${n} days ago` : n < 365 ? `${Math.round(n/30)} months ago` : 'Over a year ago';
+const firstName = n => String(n||'').trim().split(/\s+/)[0] || 'there';
+
+function rng(seed){ return () => (seed = (seed*1664525 + 1013904223) >>> 0) / 4294967296; }
+function wpick(r, pairs){ let t = r()*pairs.reduce((a,p)=>a+p[1],0); for (const p of pairs){ t -= p[1]; if (t <= 0) return p[0]; } return pairs[0][0]; }
+const CITY_LOCS = {Bengaluru:['Whitefield','Sarjapur','Hebbal','Electronic City'],Pune:['Baner','Hinjewadi','Wakad','Kharadi'],Mumbai:['Thane','Powai','Kharghar'],Hyderabad:['Gachibowli','Kondapur','Kokapet'],Noida:['Sector 150','Sector 137','Noida Extension'],Gurugram:['Sector 65','Sector 106']};
+const PER_BHK = {Bengaluru:5.5e6,Pune:4.2e6,Mumbai:6.5e6,Hyderabad:4.8e6,Noida:3.6e6,Gurugram:6e6};
+function budgetText(r, v){
+  const L = v/1e5, s = r();
+  if (s < .3) return Math.round(L/5)*5 + 'L';
+  if (s < .5) return v >= 1e7 ? (v/1e7).toFixed(1).replace(/\.0$/,'') + ' cr' : Math.round(L) + ' lakh';
+  if (s < .7) { const lo = Math.round(L*.85/5)*5, hi = Math.round(L*1.05/5)*5; return hi >= 100 ? `${(lo/100).toFixed(1)}-${(hi/100).toFixed(1)}cr` : `${lo}-${hi}L`; }
+  if (s < .8) return v >= 1e7 ? (v/1e7).toFixed(2) + ' crore' : Math.round(L) + ' lacs';
+  if (s < .9) return 'flexible';
+  return '';
+}
+function sampleRows(){
+  const r = rng(20261125), rows = [];
+  const FN = ['Aarav','Vihaan','Rohit','Ankit','Rahul','Amit','Sanjay','Vikram','Arjun','Karthik','Suresh','Manoj','Deepak','Nikhil','Pranav','Farhan','Imran','Joseph','Harpreet','Gaurav','Priya','Sneha','Pooja','Anjali','Kavya','Meera','Divya','Neha','Shruti','Ayesha','Fatima','Lakshmi','Swati','Ritu','Nandini','Ishita'];
+  const LN = ['Saxena','Verma','Gupta','Iyer','Nair','Reddy','Patil','Kulkarni','Mehta','Shah','Singh','Khan','Das','Menon','Rao','Joshi','Agarwal','Chopra','Bose','Pillai','Deshmukh','Qureshi','Fernandes','Gill'];
+  const SRC = [['99acres',22],['MagicBricks',18],['Housing.com',10],['Meta ads',20],['Website',10],['Missed call',8],['Walk-in',6],['Referral',6]];
+  const NOTES = [['',20],['called, no answer',18],['switched off',5],['asked for brochure',10],['interested, send price list',6],['call back next month',8],['visit done, thinking',5],['second visit planned',2],['negotiating price',2],['NRI, wants video call',3],['budget issue',6],['not interested',8],['bought elsewhere',4],['wrong number',3]];
+  const CITY = [['Pune',30],['Bengaluru',28],['Mumbai',12],['Hyderabad',12],['Noida',10],['Gurugram',8]];
+  const today = new Date();
+  const dmy = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  for (let i = 0; i < 472; i++) {
+    const city = wpick(r, CITY), locs = CITY_LOCS[city], loc = locs[Math.floor(r()*locs.length)];
+    const bhk = wpick(r, [[1,10],[2,50],[3,35],[4,5]]), t = r();
+    const req = t<.28 ? `${bhk}bhk ${loc.toLowerCase()}` : t<.48 ? `${bhk} BHK in ${loc}, ready to move` : t<.6 ? `looking for flat in ${loc}` : t<.7 ? `${loc} ${bhk}bhk investment` : t<.8 ? `${city} ${bhk}BHK` : t<.85 ? `plot near ${city}` : t<.89 ? `${bhk}bhk on rent ${loc}` : t<.95 ? `${bhk}BHK` : '';
+    const digits = String(6 + Math.floor(r()*4)) + String(Math.floor(r()*1e9)).padStart(9,'0');
+    const pf = r();
+    let phone = pf<.4 ? digits : pf<.6 ? '+91 ' + digits : pf<.75 ? '0' + digits : pf<.9 ? digits.slice(0,5) + ' ' + digits.slice(5) : '91' + digits;
+    if (r() < .03) phone = digits.slice(0,8);
+    const d = new Date(today); d.setDate(d.getDate() - Math.floor(Math.pow(r(),1.5)*420));
+    rows.push({Name:`${FN[Math.floor(r()*FN.length)]} ${LN[Math.floor(r()*LN.length)]}`, Mobile:phone, Requirement:req, Budget:budgetText(r, PER_BHK[city]*bhk*(.75+r()*.6)), Source:wpick(r,SRC), 'Last Contacted':dmy(d), Remarks:wpick(r,NOTES)});
+  }
+  for (let i = 0; i < 28; i++) {
+    const o = rows[Math.floor(r()*rows.length)], dg = o.Mobile.replace(/\D/g,'').slice(-10);
+    rows.push({...o, Mobile: r()<.5 ? '+91-' + dg : dg, Source: wpick(r,SRC), Remarks: wpick(r,NOTES)});
+  }
+  const headers = Object.keys(rows[0]);
+  return {headers, data: rows.map(o => headers.map(h => o[h]))};
+}
+
+/* parsing helpers */
+function normPhone(s){
+  let d = String(s ?? '').replace(/\D/g,'');
+  if (d.length === 12 && d.startsWith('91')) d = d.slice(2); else if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+  return /^[6-9]\d{9}$/.test(d) ? d : null;
+}
+function parseDate(v){
+  if (v == null || v === '') return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  if (typeof v === 'number' && v > 20000 && v < 80000) return new Date(Math.round((v - 25569)*864e5));
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; return new Date(y, +m[2]-1, +m[1]); }
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  const d = new Date(s); return isNaN(d) ? null : d;
+}
+function parseCSV(text){
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i+1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i+1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => String(x).trim() !== ''));
+}
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = res; s.onerror = () => rej(new Error('The Excel reader did not load. Save the sheet as CSV and upload that instead.'));
+    document.head.appendChild(s);
+  });
+}
+async function readTable(file){
+  let rows;
+  if (/\.csv$/i.test(file.name)) rows = parseCSV((await file.text()).replace(/^﻿/,''));
+  else {
+    await loadXLSX();
+    const wb = XLSX.read(await file.arrayBuffer(), {type:'array', cellDates:true});
+    rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:''});
+  }
+  const hi = rows.findIndex(r => r.filter(x => String(x).trim() !== '').length >= 2);
+  if (hi < 0) throw new Error('No table found in that file.');
+  return {headers: rows[hi].map(h => String(h).trim()), data: rows.slice(hi+1).filter(r => r.some(x => String(x).trim() !== ''))};
+}
+
+const FIELD_DEF = [['name','Name',/name|customer|client/i],['last','Last contacted',/last|follow|contacted|date|updated/i],['phone','Mobile',/phone|mobile|contact|number|whatsapp|cell/i],['budget','Budget',/budget|price|amount|range/i],['source','Source',/source|portal|channel|medium/i],['notes','Remarks',/remark|note|comment|status|feedback|disposition/i],['req','Requirement',/requirement|requirment|looking|config|bhk|location|locality|area|city|property|project|interest/i]];
+function detectMap(headers){
+  const map = {}; FIELD_DEF.forEach(f => map[f[0]] = []);
+  headers.forEach((h, i) => { for (const [k,,re] of FIELD_DEF) { if (re.test(h) && !/e-?mail/i.test(h)) { map[k].push(i); break; } } });
+  return map;
+}
+
+/* scoring */
+const DEAD_RE = /not interested|bought|purchased|wrong number|invalid|do not call|\bdnd\b/i;
+function enrich(L){
+  const text = `${L.req} ${L.budget}`;
+  const up = parse(text);
+  Object.assign(L, {city: up.city || null, locality: up.locality || null, bhk: up.bhk || null, bmin: up.bmin || null, bmax: up.bmax || null, rtm: up.rtm ?? null});
+  if (!L.bmax) { const n = String(L.budget).replace(/[,₹\s]/g,'').match(/^\d{6,9}$/); if (n) { L.bmax = +n[0]; L.bmin = L.bmax*.75; } }
+  if (!L.locality) {
+    const low = text.toLowerCase();
+    for (const p of INV) { const a = p.area.toLowerCase().split(/[ ,(]/)[0]; if (a.length >= 4 && low.includes(a)) { L.locality = p.area.split(/[,(]/)[0].trim(); L.city = p.city; break; } }
+    if (!L.city) for (const p of INV) if (low.includes(p.city.toLowerCase())) { L.city = p.city; break; }
+  }
+  L.type = /plot|land/i.test(L.req) ? 'Plot' : /\b(rent|rental|lease|pg)\b/i.test(L.req) ? 'Rental' : /shop|office|commercial/i.test(L.req) ? 'Commercial' : 'Flat';
+  L.nri = /\bnri\b|dubai|abroad|\busa\b|\buk\b|video call/i.test(L.notes + ' ' + L.req);
+  scoreImported(L);
+}
+function scoreImported(L){
+  const f = [], n = L.notes.toLowerCase();
+  const rc = (L.locality ? 6 : L.city ? 4 : 0) + (L.bhk ? 5 : 0) + (L.bmax ? 4 : 0);
+  f.push({k:'Requirement',max:15,v:rc,note:[L.bhk && L.bhk+'BHK', L.locality || L.city, L.bmax && 'up to ' + inr(L.bmax)].filter(Boolean).join(' · ') || 'Not clear'});
+  let mv = 0, mn = 'City not clear'; L.matches = []; L.nearOnly = false;
+  if (L.type !== 'Flat') mn = `${L.type} enquiry, not in inventory`;
+  else if (L.city) {
+    const r = search({city:L.city, locality:L.locality, bhk:L.bhk, bmin:L.bmin, bmax:L.bmax, rtm:L.rtm});
+    L.matches = r.list; L.nearOnly = r.nearOnly;
+    if (!r.list.length) mn = 'No stock in that city';
+    else if (L.bmax && !r.nearOnly) { mv = 15; mn = `${r.list.length} listing${r.list.length>1?'s':''} in budget`; }
+    else if (!L.bmax) { mv = 9; mn = `${r.list.length} option${r.list.length>1?'s':''}, budget unknown`; }
+    else { mv = 6; mn = 'Closest options above budget'; }
+  }
+  f.push({k:'Inventory match',max:15,v:mv,note:mn});
+  const d = daysAgo(L.last); L.days = d;
+  f.push({k:'Recency',max:25,v:d == null ? 6 : d <= 14 ? 25 : d <= 45 ? 17 : d <= 90 ? 10 : d <= 180 ? 5 : 2,note:agoText(d)});
+  let iv = 6, inote = 'No remarks yet';
+  if (/visit done|second visit|negotiat|token/.test(n)) { iv = 30; inote = 'Visit done / negotiating'; }
+  else if (/replied: maybe|next month$/.test(n)) { iv = 8; inote = 'Not ready yet'; }
+  else if (/new enquiry|replied: (yes|haan|can we|send|interested)/.test(n)) { iv = 26; inote = 'Fresh interest'; }
+  else if (/brochure|price list|interested|video call|call back|replied/.test(n)) { iv = 16; inote = 'Asked for details'; }
+  else if (/budget issue/.test(n)) { iv = 7; inote = 'Budget concern'; }
+  else if (/no answer|switched off|not reachable/.test(n)) { iv = 4; inote = 'Not reachable'; }
+  if (L.touches > 1) { iv = Math.min(30, iv + 4); inote += ` · enquired ${L.touches} times`; }
+  f.push({k:'Intent signals',max:30,v:iv,note:inote});
+  const sq = {'referral':15,'walk-in':14,'website':12,'99acres':10,'magicbricks':10,'housing.com':10,'meta ads':8,'missed call':8}[String(L.source).toLowerCase()] ?? 9;
+  f.push({k:'Source quality',max:15,v:sq,note:L.sources.join(', ')});
+  L.factors = f;
+  L.score = f.reduce((a,x) => a + x.v, 0);
+  L.dead = !L.phone ? 'Invalid number' : DEAD_RE.test(n) ? (/bought|purchased/.test(n) ? 'Bought elsewhere' : /wrong|invalid/.test(n) ? 'Wrong number' : 'Not interested') : null;
+  if (L.dead) L.score = Math.min(L.score, 15);
+  L.seg = L.dead ? 'Dead' : L.score >= 75 ? 'Hot' : L.score >= 58 ? 'Warm' : 'Nurture';
+  L.next = L.dead === 'Invalid number' ? 'Fix or remove the number'
+    : L.dead === 'Bought elsewhere' ? 'Archive, ask for a referral'
+    : L.dead ? 'Archive, check again in 6 months'
+    : L.type === 'Rental' ? 'Pass to rentals desk'
+    : L.type !== 'Flat' ? `Share ${L.type.toLowerCase()} options or archive`
+    : L.seg === 'Hot' ? (L.nri ? 'Video call today' : 'Call today, offer a site visit')
+    : L.seg === 'Warm' ? (L.matches.length ? `WhatsApp ${L.matches.length} matches, offer a visit` : 'WhatsApp to confirm the requirement')
+    : 'Weekly WhatsApp shortlist';
+  L.why = [f[3].v >= 16 ? f[3].note : null, 'last contact ' + agoText(d).toLowerCase(), mv ? mn : null].filter(Boolean).join(' · ');
+}
+
+function processTable(t, map, label){
+  const get = (row, k) => map[k].map(i => row[i]).filter(v => v != null && String(v).trim() !== '').map(v => v instanceof Date ? v.toLocaleDateString('en-IN') : String(v).trim()).join(' · ');
+  const byPhone = new Map(), out = []; let dupes = 0, invalid = 0;
+  for (const row of t.data) {
+    const ph = normPhone(map.phone.length ? row[map.phone[0]] : '') || normPhone(map.phone.length > 1 ? row[map.phone[1]] : '');
+    const rec = {name: get(row,'name') || 'Unnamed lead', phone: ph, rawPhone: get(row,'phone'), req: get(row,'req'), budget: get(row,'budget'), source: get(row,'source') || 'Unknown',
+      last: parseDate(map.last.length ? row[map.last[0]] : null), notes: get(row,'notes'), touches: 1, raw: Object.fromEntries(t.headers.map((h,i) => [h || `Column ${i+1}`, row[i]]))};
+    if (ph && byPhone.has(ph)) {
+      const o = byPhone.get(ph); dupes++; o.touches++;
+      if (rec.last && (!o.last || rec.last > o.last)) o.last = rec.last;
+      if (rec.notes && !o.notes.includes(rec.notes)) o.notes = [o.notes, rec.notes].filter(Boolean).join(' · ');
+      if (rec.req.length > o.req.length) o.req = rec.req;
+      if (!o.budget) o.budget = rec.budget;
+      if (!o.sources.includes(rec.source)) o.sources.push(rec.source);
+      continue;
+    }
+    if (!ph) invalid++;
+    rec.sources = [rec.source]; rec.id = M.nextId++; rec.advisor = null; rec.status = '';
+    out.push(rec); if (ph) byPhone.set(ph, rec);
+  }
+  out.forEach(enrich);
+  Object.assign(M, {leads: out, raw: t.data.length, dupes, invalid, page: 0, seg: 'all', label, fresh: null});
+  renderManager();
+}
+
+/* rendering */
+function segCount(s){ return M.leads.filter(l => l.seg === s).length; }
+function filtered(){
+  const q = M.q.toLowerCase();
+  return M.leads.filter(l => (M.seg === 'all' || l.seg === M.seg) && (M.adv === 'all' || (M.adv === 'none' ? !l.advisor : l.advisor === M.adv)) &&
+    (!q || `${l.name} ${l.phone||''} ${l.req} ${l.locality||''} ${l.city||''} ${l.notes} ${l.source}`.toLowerCase().includes(q)))
+    .sort((a,b) => (b.id === M.fresh) - (a.id === M.fresh) || b.score - a.score);
+}
+function reTargets(){ return M.leads.filter(l => (l.seg === 'Nurture' || l.seg === 'Warm') && l.type === 'Flat' && (l.days == null || l.days > 30) && l.status !== 'Message sent' && l.status !== 'Replied'); }
+function renderManager(){
+  const U = M.leads.length;
+  $('#mgrLabel').textContent = M.label;
+  $('#mgrPipe').innerHTML = `<span><b class="num">${M.raw}</b>rows imported</span><span class="arrow">→</span><span><b class="num">${M.dupes}</b>duplicates merged</span><span class="arrow">→</span><span><b class="num">${M.invalid}</b>invalid numbers</span><span class="arrow">→</span><span><b class="num">${U}</b>unique leads scored</span>`;
+  $('#segBar').innerHTML = SEGS.map(([s,c]) => `<i style="width:${U ? segCount(s)/U*100 : 0}%;background:${c}" title="${s}"></i>`).join('');
+  $('#segChips').innerHTML = `<button class="chip" data-seg="all" aria-pressed="${M.seg==='all'}">All · ${U}</button>` + SEGS.map(([s]) => `<button class="chip" data-seg="${s}" aria-pressed="${M.seg===s}"><span class="pill ${s}">${s}</span> ${segCount(s)}</button>`).join('');
+  const hot = M.leads.filter(l => l.seg === 'Hot' && l.status !== 'Called').sort((a,b) => b.score - a.score).slice(0, 12);
+  $('#callCount').textContent = `${segCount('Hot')} hot leads`;
+  $('#callList').innerHTML = hot.map((l,i) => `<li data-lead="${l.id}"><span class="rank">${i+1}</span><div style="min-width:0"><div class="nm">${esc(l.name)} <span class="sub">${maskPhone(l.phone)}</span></div><div class="sub">${esc([l.bhk && l.bhk+'BHK', l.locality || l.city, l.bmax && 'up to ' + inr(l.bmax)].filter(Boolean).join(' · ') || l.req)}</div><div class="sub">${esc(l.why)}</div><div class="act">${esc(l.next)}${l.matches[0] ? ' · pitch ' + esc(l.matches[0].name) + ' (' + inr(l.matches[0].price) + ')' : ''}</div></div><span class="pill Hot">${l.score}</span></li>`).join('') || '<li style="display:block;cursor:default"><span class="sub">No hot leads yet. Wake up old leads to find some.</span></li>';
+  const active = M.leads.filter(l => l.seg !== 'Dead');
+  const maxLoad = Math.max(1, ...ADV.map(a => active.filter(l => l.advisor === a).length), active.filter(l => !l.advisor).length);
+  $('#advList').innerHTML = [...ADV, null].map(a => { const mine = active.filter(l => (l.advisor || null) === a); const h = mine.filter(l => l.seg === 'Hot').length;
+    return `<div class="adv-row"><span>${a || 'Unassigned'}</span><span class="bar"><i style="width:${mine.length/maxLoad*100}%"></i></span><span>${mine.length} · ${h} hot</span></div>`; }).join('');
+  const re = reTargets();
+  $('#reText').innerHTML = `<b class="num">${re.length}</b> leads haven't heard from the firm in over a month but still match your inventory. The agent can send each one a personal WhatsApp with a property that fits them.`;
+  $('#reBtn').disabled = !re.length;
+  const rows = filtered(), pages = Math.max(1, Math.ceil(rows.length / PER));
+  if (M.page >= pages) M.page = pages - 1;
+  const slice = rows.slice(M.page*PER, M.page*PER + PER);
+  $('#mgrRows').innerHTML = slice.map(l => `<tr class="click ${l.id===M.fresh?'fresh':''}" data-lead="${l.id}"><td><b>${esc(l.name)}</b>${l.id===M.fresh?'<span class="livetag">NEW</span>':''}<div class="raw">${maskPhone(l.phone)}${l.touches>1?` · ${l.touches} enquiries merged`:''}</div></td>
+    <td><div class="req">${[l.type!=='Flat'?l.type:null, l.bhk&&l.bhk+'BHK', l.locality||l.city, l.bmax&&`${inr(l.bmin||l.bmax*.75)}–${inr(l.bmax)}`].filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join('') || '<span>Not clear</span>'}</div><div class="raw">“${esc((l.req + (l.budget ? ' · ' + l.budget : '')).slice(0,60)) || 'blank'}”</div></td>
+    <td>${esc(l.sources.join(', '))}</td><td>${agoText(l.days)}<div class="raw">${esc((l.notes||'').slice(0,40))}</div></td>
+    <td><span class="pill ${l.seg}">${l.score}</span></td><td>${l.advisor || '<span class="muted">—</span>'}</td><td class="muted">${esc(l.status ? l.status + ' · ' : '')}${esc(l.next)}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">No leads match these filters.</td></tr>';
+  $('#pageInfo').textContent = rows.length ? `${M.page*PER+1}–${Math.min(rows.length,(M.page+1)*PER)} of ${rows.length} leads` : '0 leads';
+  $('#prevPg').disabled = M.page === 0; $('#nextPg').disabled = M.page >= pages - 1;
+}
+
+/* drawer */
+function leadById(id){ return M.leads.find(l => l.id === +id); }
+function reMessage(l){
+  const p = l.matches[0];
+  const sameArea = !l.locality || p.area.toLowerCase().includes(l.locality.toLowerCase());
+  return p ? `Hi ${firstName(l.name)}, this is Riya from ${firm()}. You'd asked about ${l.bhk ? 'a ' + l.bhk + 'BHK' : 'a home'} in ${l.locality || l.city}. ${sameArea ? 'We now have' : 'Nothing new there yet, but this one nearby fits your budget:'} ${p.name}, ${p.area}: ${p.bhk}BHK, ${p.sqft.toLocaleString('en-IN')} sq ft, ${inr(p.price)}, ${p.rtm ? 'ready to move' : p.poss.toLowerCase()}. Still looking? Reply YES and I'll send photos and visit slots.`
+    : `Hi ${firstName(l.name)}, this is Riya from ${firm()}. Are you still looking for a home${l.city ? ' in ' + l.city : ''}? Reply YES and I'll send this week's best options.`;
+}
+function openDrawer(id){
+  const l = leadById(id); if (!l) return;
+  const dr = $('#drawer');
+  dr.innerHTML = `<div class="drawer-h"><div><h3>${esc(l.name)}</h3><div class="muted" style="font-size:13px"><span id="phoneTxt">${maskPhone(l.phone)}</span> ${l.phone ? '<button class="btn ghost" type="button" id="revealPh" style="padding:2px 8px;font-size:12px">Show number</button>' : ''}</div></div><button class="x" type="button" id="closeDr" aria-label="Close">×</button></div>
+    <div class="score-top"><span class="pill ${l.seg}" style="font-size:14px">${l.seg} · ${l.score}/100</span><span class="muted" style="font-size:13px">${esc(l.next)}</span></div>
+    <div class="factors">${l.factors.map(x => `<div class="factor"><span>${x.k}</span><span class="bar"><i style="width:${x.v/x.max*100}%"></i></span><span class="n">${x.v}/${x.max}</span><small>${esc(x.note)}</small></div>`).join('')}</div>
+    <dl class="kv"><dt>Wrote</dt><dd>“${esc(l.req || '—')}” ${l.budget ? '· “' + esc(l.budget) + '”' : ''}</dd><dt>Agent read</dt><dd>${esc([l.type, l.bhk && l.bhk+'BHK', l.locality, l.city, l.bmax && inr(l.bmin||l.bmax*.75)+'–'+inr(l.bmax), l.nri && 'NRI'].filter(Boolean).join(' · '))}</dd><dt>Sources</dt><dd>${esc(l.sources.join(', '))}${l.touches>1?` (${l.touches} enquiries merged)`:''}</dd><dt>Last contact</dt><dd>${agoText(l.days)}</dd><dt>Remarks</dt><dd>${esc(l.notes || '—')}</dd>
+      <dt>Advisor</dt><dd><select id="drAdv" class="field" style="padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);color:var(--ink)"><option value="">Unassigned</option>${ADV.map(a => `<option ${l.advisor===a?'selected':''}>${a}</option>`).join('')}</select></dd></dl>
+    <div><div class="label" style="margin-bottom:6px">Matching properties</div><div class="props-list">${l.matches.length ? l.matches.map(p => `<div class="prop"><div class="prop-top"><b>${esc(p.name)}</b><span class="price num">${inr(p.price)}</span></div><div class="row"><span>${esc(p.area)}, ${esc(p.city)}</span><span>${p.bhk}BHK · ${p.sqft.toLocaleString('en-IN')} sq ft</span><span class="tag ${p.rtm?'':'uc'}">${esc(p.rtm?'Ready to move':p.poss)}</span></div></div>`).join('') : '<div class="empty">Nothing in inventory fits yet.</div>'}</div></div>
+    ${l.seg !== 'Dead' ? `<div><div class="label" style="margin-bottom:6px">Suggested WhatsApp</div><div class="reply" id="drMsg">${esc(reMessage(l))}</div><div class="scen" style="margin-top:8px"><button class="btn ghost" type="button" id="copyMsg">Copy message</button></div></div>` : ''}
+    <div class="scen"><button class="btn" type="button" data-mark="visit">Mark visit booked</button><button class="btn ghost" type="button" data-mark="called">Mark called</button><button class="btn ghost" type="button" data-mark="dead">Not interested</button></div>`;
+  dr.dataset.lead = l.id; dr.hidden = false; $('#backdrop').hidden = false;
+}
+function closeOverlays(){ $('#drawer').hidden = true; $('#reModal').hidden = true; $('#backdrop').hidden = true; reRun++; }
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 3200); }
+async function copyText(text, okMsg){
+  try { await navigator.clipboard.writeText(text); toast(okMsg); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast(okMsg); } catch (_) { toast('Copy was blocked. Select the text and copy it manually.'); } ta.remove(); }
+}
+
+/* re-engagement simulation */
+let reRun = 0;
+function openReModal(){
+  const targets = reTargets(), m = $('#reModal');
+  const sample = targets.slice().sort((a,b) => b.matches.length - a.matches.length).slice(0,3);
+  m.innerHTML = `<div class="panel-h"><h3>Message ${targets.length} old leads</h3><button class="x" type="button" id="closeRe" aria-label="Close">×</button></div>
+    <div class="panel-b" style="display:grid;gap:12px">
+      <p class="muted" style="margin:0">Each lead gets a personal message with a property that fits their old requirement. Sent as an approved WhatsApp template; anyone who opted out is skipped. Replies go to the agent, which re-scores the lead and books visits.</p>
+      ${sample.map(l => `<div><div class="label" style="margin-bottom:4px">To ${esc(l.name)} · ${agoText(l.days).toLowerCase()}</div><div class="reply">${esc(reMessage(l))}</div></div>`).join('')}
+      <div class="scen"><button class="btn accent" type="button" id="reSend">Send to ${targets.length} leads (simulation)</button></div>
+      <div id="reFeedWrap" hidden><div class="label" style="margin-bottom:6px">Replies coming in (simulated)</div><ul class="feed" id="reFeed"></ul><p class="muted" id="reSum" style="margin:8px 0 0"></p></div>
+    </div>`;
+  m.hidden = false; $('#backdrop').hidden = false;
+}
+async function runReengage(){
+  const my = ++reRun, targets = reTargets(), r = rng(targets.length * 7 + 3);
+  targets.forEach(l => { l.status = 'Message sent'; });
+  $('#reSend').disabled = true; $('#reSend').textContent = `Sent to ${targets.length} leads`;
+  $('#reFeedWrap').hidden = false; renderManager();
+  const POS = ['Yes, still looking', 'Haan, details bhejo', 'Can we visit this Sunday?', 'Send price list please', 'Yes, is the price negotiable?'];
+  const repliers = targets.filter(() => r() < .14);
+  let hotNow = 0, deadNow = 0;
+  for (const l of repliers) {
+    await sleep(380); if (my !== reRun) return;
+    const t = r(), msg = t < .62 ? POS[Math.floor(r()*POS.length)] : t < .85 ? 'Maybe next month' : t < .93 ? 'Already bought, thanks' : 'Not interested';
+    l.notes = (l.notes ? l.notes + ' · ' : '') + 'replied: ' + msg; l.last = new Date(); l.status = 'Replied';
+    const before = l.seg; scoreImported(l);
+    if (l.seg === 'Hot' && before !== 'Hot') hotNow++; if (l.seg === 'Dead') deadNow++;
+    const li = document.createElement('li');
+    li.innerHTML = `<b>${esc(l.name)}</b><span class="muted">“${esc(msg)}”</span><span class="pill ${l.seg}">${l.seg} ${l.score}</span>`;
+    $('#reFeed').prepend(li);
+    $('#reSum').textContent = `${repliers.indexOf(l)+1} replies so far · ${hotNow} became hot · ${deadNow} closed out`;
+    renderManager();
+  }
+  if (my === reRun) $('#reSum').textContent = `${repliers.length} replies from ${targets.length} messages · ${hotNow} new hot leads added to today's call list · ${deadNow} closed out cleanly.`;
+}
+
+/* enquiry form */
+$('#enqForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const ph = normPhone($('#enqPhone').value);
+  const rec = {name: $('#enqName').value.trim() || 'New lead', phone: ph, rawPhone: $('#enqPhone').value, req: $('#enqReq').value.trim(), budget: $('#enqBudget').value.trim(), source: $('#enqSrc').value, last: new Date(), notes: 'new enquiry', touches: 1, sources: [$('#enqSrc').value], status: 'Auto-replied', advisor: null, raw: {}};
+  const existing = ph && M.leads.find(l => l.phone === ph);
+  let l = rec;
+  if (existing) { existing.touches++; existing.last = new Date(); existing.notes = (existing.notes ? existing.notes + ' · ' : '') + 'new enquiry'; existing.req = rec.req || existing.req; existing.budget = rec.budget || existing.budget; if (!existing.sources.includes(rec.source)) existing.sources.push(rec.source); l = existing; enrich(l); }
+  else { rec.id = M.nextId++; enrich(rec); M.leads.push(rec); M.raw++; if (!ph) M.invalid++; }
+  if (!l.advisor && l.seg === 'Hot') { const loads = ADV.map(a => [a, M.leads.filter(x => x.advisor === a && x.seg !== 'Dead').length]).sort((a,b) => a[1]-b[1]); l.advisor = loads[0][0]; }
+  M.fresh = l.id; M.seg = 'all'; M.adv = 'all'; M.q = ''; M.page = 0; $('#mgrSearch').value = ''; $('#mgrAdv').value = 'all';
+  const props = l.matches.slice(0,3).map((p,i) => `${i+1}. ${p.name}, ${p.area} · ${p.bhk}BHK · ${inr(p.price)} · ${p.rtm ? 'Ready to move' : p.poss}`).join('\n');
+  const reply = l.matches.length
+    ? `Namaste ${firstName(l.name)}! I'm Riya from ${firm()}. Thanks for your enquiry. ${l.nearOnly ? 'Closest to your budget' : l.matches.length > 1 ? 'These match what you asked for' : 'This one matches what you asked for'}:\n${props}\nWould you like to see ${l.matches.length > 1 ? 'them' : 'it'} this weekend?`
+    : `Namaste ${firstName(l.name)}! I'm Riya from ${firm()}. Thanks for your enquiry. ${l.city ? `We don't have an exact match in ${l.locality || l.city} today, but new listings come in every week.` : 'Which city and area are you looking in?'}`;
+  $('#enqOut').hidden = false;
+  $('#enqOut').innerHTML = `<div class="label" style="margin-bottom:6px">Agent replied on WhatsApp in 28 seconds${existing ? ' · matched an existing lead and merged it' : ''}</div><div class="reply">${esc(reply)}</div><div class="muted" style="font-size:12.5px;margin-top:6px">Scored <span class="pill ${l.seg}">${l.seg} ${l.score}</span>${l.advisor ? ` · assigned to ${l.advisor}` : ''}. It is now at the top of the lead list.</div>`;
+  renderManager();
+});
+
+/* events */
+$('#segChips').addEventListener('click', e => { const b = e.target.closest('[data-seg]'); if (!b) return; M.seg = b.dataset.seg; M.page = 0; renderManager(); });
+$('#mgrSearch').addEventListener('input', e => { M.q = e.target.value; M.page = 0; renderManager(); });
+$('#mgrAdv').addEventListener('change', e => { M.adv = e.target.value; M.page = 0; renderManager(); });
+$('#prevPg').addEventListener('click', () => { M.page--; renderManager(); });
+$('#nextPg').addEventListener('click', () => { M.page++; renderManager(); });
+$('#mgrRows').addEventListener('click', e => { const tr = e.target.closest('[data-lead]'); if (tr) openDrawer(tr.dataset.lead); });
+$('#callList').addEventListener('click', e => { const li = e.target.closest('[data-lead]'); if (li) openDrawer(li.dataset.lead); });
+$('#backdrop').addEventListener('click', closeOverlays);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOverlays(); });
+$('#drawer').addEventListener('click', e => {
+  const l = leadById($('#drawer').dataset.lead); if (!l) return;
+  if (e.target.id === 'closeDr') return closeOverlays();
+  if (e.target.id === 'revealPh') { $('#phoneTxt').textContent = fullPhone(l.phone); e.target.remove(); return; }
+  if (e.target.id === 'copyMsg') return copyText(reMessage(l), 'Message copied');
+  const mk = e.target.dataset.mark;
+  if (mk) {
+    if (mk === 'visit') { l.notes = (l.notes ? l.notes + ' · ' : '') + 'visit done'; l.last = new Date(); l.status = 'Visit booked'; }
+    if (mk === 'called') { l.status = 'Called'; l.last = new Date(); }
+    if (mk === 'dead') { l.notes = (l.notes ? l.notes + ' · ' : '') + 'not interested'; l.status = ''; }
+    scoreImported(l); renderManager(); openDrawer(l.id); toast(`${l.name}: ${l.seg} ${l.score}`);
+  }
+});
+$('#drawer').addEventListener('change', e => { if (e.target.id === 'drAdv') { const l = leadById($('#drawer').dataset.lead); l.advisor = e.target.value || null; renderManager(); } });
+$('#assignBtn').addEventListener('click', () => {
+  const todo = M.leads.filter(l => !l.advisor && (l.seg === 'Hot' || l.seg === 'Warm')).sort((a,b) => b.score - a.score);
+  const load = Object.fromEntries(ADV.map(a => [a, M.leads.filter(l => l.advisor === a && l.seg !== 'Dead').length]));
+  todo.forEach(l => { const a = ADV.slice().sort((x,y) => load[x]-load[y])[0]; l.advisor = a; load[a]++; });
+  renderManager(); toast(todo.length ? `Assigned ${todo.length} leads, hottest first, balanced across ${ADV.length} advisors` : 'All hot and warm leads already have an advisor');
+});
+$('#reBtn').addEventListener('click', openReModal);
+$('#reModal').addEventListener('click', e => { if (e.target.id === 'closeRe') closeOverlays(); if (e.target.id === 'reSend') runReengage(); });
+$('#copyCsv').addEventListener('click', () => {
+  const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+  const lines = [['Name','Mobile','City','Locality','BHK','Budget min','Budget max','Sources','Last contact','Score','Segment','Advisor','Next action','Remarks'].join(',')]
+    .concat(filtered().map(l => [l.name, l.phone ? '+91' + l.phone : '', l.city, l.locality, l.bhk, l.bmin ? Math.round(l.bmin) : '', l.bmax ? Math.round(l.bmax) : '', l.sources.join('; '), l.last ? l.last.toLocaleDateString('en-IN') : '', l.score, l.seg, l.advisor, l.next, l.notes].map(q).join(',')));
+  copyText(lines.join('\n'), `Copied ${lines.length - 1} leads. Paste into Excel or Google Sheets.`);
+});
+
+/* uploads */
+function showMapping(t, fileName){
+  const map = detectMap(t.headers); M.pending = {t, map, fileName};
+  $('#mapTitle').textContent = `Check the columns in ${fileName} (${t.data.length} rows)`;
+  const opts = sel => `<option value="">Not in file</option>` + t.headers.map((h,i) => `<option value="${i}" ${sel===i?'selected':''}>${esc(h || 'Column ' + (i+1))}</option>`).join('');
+  $('#mapGrid').innerHTML = FIELD_DEF.map(([k,label]) => `<label class="field">${label}${map[k].length > 1 ? ` <span class="muted">(+${map[k].length-1} more)</span>` : ''}<select data-map="${k}">${opts(map[k][0] ?? -1)}</select></label>`).join('');
+  $('#mapPanel').hidden = false; $('#mapPanel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+$('#mapGrid').addEventListener('change', e => { const k = e.target.dataset.map; if (k && M.pending) M.pending.map[k] = e.target.value === '' ? [] : [+e.target.value]; });
+$('#mapGo').addEventListener('click', () => {
+  const p = M.pending; if (!p) return;
+  if (!p.map.phone.length && !p.map.name.length) return toast('Pick at least the Name or Mobile column.');
+  M.nextId = 1; processTable(p.t, p.map, p.fileName); $('#mapPanel').hidden = true; M.pending = null;
+  toast(`${M.leads.length} leads scored from ${p.fileName}`);
+});
+$('#mapCancel').addEventListener('click', () => { $('#mapPanel').hidden = true; M.pending = null; });
+$('#mgrFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { showMapping(await readTable(f), f.name); } catch (err) { toast(err.message || 'Could not read that file.'); }
+});
+$('#invFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const t = await readTable(f), H = t.headers.map(h => h.toLowerCase());
+    const col = re => H.findIndex(h => re.test(h));
+    const c = {name: col(/project|name|building|society/), area: col(/locality|area\b|location|sector|address/), city: col(/city/), bhk: col(/bhk|config|bed|type/), price: col(/price|amount|cost|rate|value/), sqft: col(/carpet|sq|size|super/), status: col(/status|possession|ready/), rera: col(/rera/), builder: col(/builder|developer/)};
+    if (c.price < 0) throw new Error('Could not find a price column in the inventory file.');
+    const items = t.data.map((r, i) => {
+      const v = k => c[k] >= 0 ? String(r[c[k]] ?? '').trim() : '';
+      let price = parse(v('price')).bmax; const bare = +v('price').replace(/[,₹\s]/g,''); if (!price && bare >= 1e5) price = bare;
+      const cityTxt = v('city') || v('area'); let city = null; for (const [re, cname] of CITIES) if (re.test(cityTxt.toLowerCase())) { city = cname; break; }
+      const st = v('status');
+      return {id: `INV-${i+1}`, name: v('name') || `Listing ${i+1}`, area: v('area') || v('city') || '—', city: city || v('city') || 'Unknown', bhk: +(v('bhk').match(/\d/) || [0])[0] || null,
+        sqft: +v('sqft').replace(/\D/g,'') || 0, price, rtm: /ready|rtm|\boc\b|completed/i.test(st), poss: st || 'Ask advisor', note: '', am: [], builder: v('builder') || '', rera: v('rera') || '—'};
+    }).filter(p => p.price);
+    if (!items.length) throw new Error('No rows with a readable price.');
+    INV.length = 0; items.forEach(p => INV.push(p));
+    M.leads.forEach(enrich); renderManager();
+    toast(`Loaded ${items.length} listings from ${f.name}. Leads re-matched against your inventory.`);
+  } catch (err) { toast(err.message || 'Could not read that file.'); }
+});
+$('#mgrSample').addEventListener('click', () => { M.nextId = 1; const t = sampleRows(); processTable(t, detectMap(t.headers), 'Sample: 500 leads'); });
+
+/* ROI */
+function renderROI(){
+  const n = id => Math.max(0, parseFloat($('#' + id).value) || 0);
+  const leads = n('roiLeads'), v = n('roiVisit')/100, c = n('roiClose')/100, deal = n('roiDeal')*1e5, comm = n('roiComm')/100, lift = n('roiLift')/100, old = n('roiOld'), back = n('roiBack')/100;
+  const now = leads*v*c, withAgent = leads*v*(1+lift)*c + (old*back*c)/12;
+  const extra = (withAgent - now)*deal*comm;
+  $('#roiOut').innerHTML = `<div><span>Deals per month today</span><b>${now.toFixed(1)}</b></div><div><span>Deals per month with the agent</span><b>${withAgent.toFixed(1)}</b></div>
+    <div><span>Old leads revived per year</span><b>${Math.round(old*back)}</b></div><div class="big"><span>Extra commission per month</span><b>${inr(Math.max(0,extra))}</b></div>
+    <div><span>Extra commission per year</span><b>${inr(Math.max(0,extra*12))}</b></div><p class="muted" style="margin:0;font-size:12px">Old-lead revivals are spread over 12 months. Change any number to match the firm.</p>`;
+}
+$$('.roi-in input').forEach(i => i.addEventListener('input', renderROI));
+
+/* ---------- campaigns ---------- */
+const TEMPLATES = [
+  {name:'weekend_site_visit', body:'Hi {{1}}, we are hosting site visits in {{2}} this weekend, with free cab pickup. Shall I book a slot for you?', defaults:['{first_name}','{locality|your area}']},
+  {name:'new_project_launch', body:'Hi {{1}}, new {{2}} homes are launching in {{3}} with early-bird prices. Reply YES for the price list and visit slots.', defaults:['{first_name}','{bhk|2 and 3 BHK}','{locality|your area}']},
+  {name:'price_drop_alert', body:'Hi {{1}}, good news: a home matching your search in {{2}} just dropped in price. Want the details?', defaults:['{first_name}','{locality|your area}']}
+];
+const CF = {aud:'manager', uploaded:null, uploadName:'', prep:null, run:null, optOut:new Set()};
+const CN_FIRST = ['Aditya','Bhavna','Chetan','Deepika','Eshan','Farah','Girish','Harini','Irfan','Jyoti','Kunal','Lata','Mohit','Nisha','Omkar','Pallavi','Rakesh','Sakshi','Tarun','Uma','Varun','Yamini','Zoya','Aakash','Rekha','Siddharth','Tanvi','Vivek'];
+const CN_LAST = ['Agrawal','Bhat','Chauhan','Dutta','Goyal','Hegde','Iyengar','Jadhav','Kapoor','Lal','Mishra','Naidu','Oberoi','Pandey','Rathore','Sethi','Thakur','Upadhyay','Vyas','Wagh'];
+function sampleContacts(){
+  const r = rng(424242), out = [];
+  const cities = Object.keys(CITY_LOCS);
+  for (let i = 0; i < 1000; i++) {
+    const city = cities[Math.floor(r()*cities.length)], loc = r() < .82 ? CITY_LOCS[city][Math.floor(r()*CITY_LOCS[city].length)] : '';
+    const d = String(6 + Math.floor(r()*4)) + String(Math.floor(r()*1e9)).padStart(9,'0');
+    const raw = r() < .03 ? d.slice(0,7) : r() < .5 ? d : '+91 ' + d.slice(0,5) + ' ' + d.slice(5);
+    out.push({name:`${CN_FIRST[Math.floor(r()*CN_FIRST.length)]} ${CN_LAST[Math.floor(r()*CN_LAST.length)]}`, raw, phone: normPhone(raw), locality: loc, city, bhk: r() < .7 ? (2 + Math.floor(r()*2)) + ' BHK' : ''});
+  }
+  for (let i = 0; i < 40; i++) out.push({...out[Math.floor(r()*900)]});  // duplicates, like real exports
+  for (let i = 0; i < 12; i++) { const p = out[Math.floor(r()*1000)].phone; if (p) CF.optOut.add(p); }  // replied STOP earlier
+  return out;
+}
+let SAMPLE_CONTACTS = null;
+function audience(){
+  if (CF.aud === 'sample') return SAMPLE_CONTACTS || (SAMPLE_CONTACTS = sampleContacts());
+  if (CF.aud === 'upload') return CF.uploaded || [];
+  const seg = $('#campSeg').value;
+  return M.leads.filter(l => seg === 'active' ? l.seg !== 'Dead' : seg === 'nurture' ? l.seg === 'Nurture' : (l.seg === 'Warm' || l.seg === 'Nurture'))
+    .map(l => ({name: l.name, raw: l.rawPhone, phone: l.phone, locality: l.locality || '', city: l.city || '', bhk: l.bhk ? l.bhk + ' BHK' : '', leadId: l.id}));
+}
+function fillVars(vars, c){
+  const v = {first_name: firstName(c.name), name: c.name || '', locality: c.locality || '', city: c.city || '', bhk: c.bhk || ''};
+  return vars.map(t => t.replace(/\{([a-z_]+)(?:\|([^}]*))?\}/g, (_, k, fb) => { const x = (v[k] || '').trim() || (fb || '').trim(); if (!x) throw new Error(k); return x; }).trim());
+}
+function curTemplate(){ return TEMPLATES[+$('#campTpl').value || 0]; }
+function curVars(){ return $$('#varGrid input').map(i => i.value); }
+function renderTemplate(){
+  const t = curTemplate();
+  $('#tplBody').innerHTML = esc(t.body).replace(/\{\{(\d)\}\}/g, '<mark>{{$1}}</mark>');
+  $('#varGrid').innerHTML = t.defaults.map((d, i) => `<label class="field">{{${i+1}}}<input data-var="${i}" value="${esc(d)}" autocomplete="off"></label>`).join('');
+  $('#fieldList').innerHTML = 'Fill from: ' + ['first_name','name','locality','city','bhk'].map(f => `<code>{${f}}</code>`).join(' ') + ' · text after | is used when a cell is empty';
+  CF.prep = null; $('#campCheckOut').hidden = true; renderPreview();
+}
+function renderPreview(){
+  const t = curTemplate(), list = audience(), first = list.find(c => c.phone && !CF.optOut.has(c.phone));
+  let body = t.body;
+  if (first) { try { const vals = fillVars(curVars(), first); body = body.replace(/\{\{(\d)\}\}/g, (_, n) => vals[n-1] ?? `{{${n}}}`); } catch (e) {} }
+  $('#pvTo').textContent = first ? `To ${first.name} · ${maskPhone(first.phone)}` : '';
+  $('#pvBox').innerHTML = `<div class="b agent" style="align-self:flex-start;border-top-left-radius:2px;border-top-right-radius:10px;background:var(--bubble-in)"><span class="tpl-tag">${esc(firm())} · ${esc(t.name)}</span>${esc(body)}<div class="qr"><span>Interested</span><span>Stop promotions</span></div><span class="t">10:30 am</span></div>`;
+}
+function renderAudience(){
+  $$('[data-aud]').forEach(b => b.setAttribute('aria-pressed', b.dataset.aud === CF.aud));
+  $('#segWrap').hidden = CF.aud !== 'manager';
+  const list = audience();
+  $('#audCount').textContent = `${list.length.toLocaleString('en-IN')} contacts`;
+  $('#audInfo').textContent = CF.aud === 'manager' ? 'Uses the leads scored in the Lead manager tab. Dead leads and wrong numbers are left out.'
+    : CF.aud === 'sample' ? 'A sample export of 1,000 contacts, with the duplicates and bad numbers real lists have.'
+    : CF.uploadName ? `From ${CF.uploadName}. The file stays in this browser.` : '';
+  CF.prep = null; $('#campCheckOut').hidden = true; renderPreview();
+}
+function prepare(){
+  const seen = new Set(), targets = []; const counts = {rows: 0, receive: 0, dupes: 0, invalid: 0, opted: 0, missing: 0};
+  const vars = curVars();
+  for (const c of audience()) {
+    counts.rows++;
+    if (!c.phone) { counts.invalid++; continue; }
+    if (seen.has(c.phone)) { counts.dupes++; continue; }
+    seen.add(c.phone);
+    if (CF.optOut.has(c.phone)) { counts.opted++; continue; }
+    try { targets.push({...c, vals: fillVars(vars, c), st: 'waiting'}); counts.receive++; } catch (e) { counts.missing++; }
+  }
+  return {targets, counts};
+}
+$('#campCheck').addEventListener('click', () => {
+  if (CF.run && CF.run.state !== 'done') return toast('A campaign is running. Reset it first to start another.');
+  CF.prep = prepare(); const c = CF.prep.counts, limit = +$('#campLimit').value;
+  const days = Math.max(1, Math.ceil(c.receive / limit));
+  const out = $('#campCheckOut'); out.hidden = false;
+  out.innerHTML = `<div class="cstats">${[['Contacts', c.rows], ['Will receive', c.receive], ['Duplicates', c.dupes], ['Bad numbers', c.invalid], ['Opted out', c.opted], ['Missing values', c.missing]].map(([k, v]) => `<div class="cstat"><span>${k}</span><b>${v.toLocaleString('en-IN')}</b></div>`).join('')}</div>
+    <div class="camp-note">At ${limit.toLocaleString('en-IN')} people a day this takes ${days} day${days > 1 ? 's' : ''}, sent between 9 AM and 9 PM. Only message people who agreed to hear from ${esc(firm())} on WhatsApp.</div>
+    <div class="scen"><button class="btn ghost" type="button" id="campTest">Send test to my phone</button><button class="btn accent" type="button" id="campStart" ${c.receive ? '' : 'disabled'}>Start campaign</button></div>`;
+  $('#campTest').onclick = () => toast('Test sent to your phone (simulation). Check how the template looks before starting.');
+  $('#campStart').onclick = startCampaign;
+});
+
+/* live send simulation */
+const POS_REPLIES = ['Interested', 'Yes, send details', 'Haan, price list bhejo', 'Can we visit Sunday?', 'Send brochure please'];
+function startCampaign(){
+  const r = rng(CF.prep.targets.length * 13 + 7);
+  CF.prep.targets.forEach(t => { const x = r(); t.fate = x < .09 ? 'pos' : x < .11 ? 'stop' : x < .135 ? 'later' : null; t.fail = r() < .02; t.willRead = r() < .74; });
+  CF.run = {name: $('#campName').value.trim() || 'Campaign', tpl: curTemplate().name, targets: CF.prep.targets, limit: +$('#campLimit').value,
+    day: 1, sentToday: 0, state: 'running', feed: [], quiet: 0, r};
+  $('#campCheckOut').hidden = true; CF.prep = null;
+  clearInterval(CF.timer); CF.timer = setInterval(stepCampaign, 140); renderRun();
+}
+function campaignLead(t, msg){
+  const src = `Campaign: ${CF.run.name}`, note = 'replied: ' + msg.toLowerCase();
+  let l = t.phone && M.leads.find(x => x.phone === t.phone);
+  if (l) { l.notes = (l.notes ? l.notes + ' · ' : '') + note; l.last = new Date(); if (!l.sources.includes(src)) l.sources.push(src); }
+  else { l = {id: M.nextId++, name: t.name, phone: t.phone, rawPhone: t.raw, req: `${t.bhk || ''} ${t.locality || t.city || ''}`.trim(), budget: '', source: src, sources: [src], last: new Date(), notes: note, touches: 1, advisor: null, raw: {}}; M.leads.push(l); M.raw++; }
+  l.status = 'Replied to campaign';
+  enrich(l);
+  return l;
+}
+function stepCampaign(){
+  const R = CF.run; if (!R || R.state === 'paused') return;
+  let changed = false, newLead = false;
+  const k = Math.max(4, Math.ceil(R.limit / 45));
+  if (R.state === 'running') {
+    let n = 0;
+    for (const t of R.targets) { if (n >= k || R.sentToday >= R.limit) break; if (t.st === 'waiting') { t.st = 'sent'; R.sentToday++; n++; changed = true; } }
+    if (R.sentToday >= R.limit && R.targets.some(t => t.st === 'waiting')) R.state = 'limit';
+  }
+  for (const t of R.targets) {
+    const x = R.r();
+    if (t.st === 'sent' && x < .3) { t.st = t.fail ? 'failed' : 'delivered'; changed = true; }
+    else if (t.st === 'delivered' && t.willRead && x < .1) { t.st = 'read'; changed = true; }
+    else if (t.st === 'read' && t.fate && x < .05) {
+      changed = true;
+      if (t.fate === 'stop') { t.st = 'opted'; CF.optOut.add(t.phone); R.feed.unshift({t, msg: 'Stop promotions', out: 'Opted out. Never messaged again.', seg: null}); }
+      else if (t.fate === 'later') { t.st = 'replied'; R.feed.unshift({t, msg: 'Maybe next month', out: 'Agent will check back in 30 days.', seg: null}); }
+      else { t.st = 'replied'; newLead = true; const msg = POS_REPLIES[Math.floor(R.r()*POS_REPLIES.length)]; const l = campaignLead(t, msg);
+        R.feed.unshift({t, msg, out: `Agent replied with ${l.matches.length || 'new'} matching option${l.matches.length === 1 ? '' : 's'} · added to Lead manager`, seg: l}); }
+      t.fate = null;
+    }
+  }
+  if (!changed) R.quiet++; else R.quiet = 0;
+  if (R.state === 'running' && !R.targets.some(t => t.st === 'waiting') && R.quiet > 25) { R.state = 'done'; clearInterval(CF.timer); }
+  if (changed || R.state === 'done') renderRun();
+  if (newLead) renderManager();
+}
+function runCounts(R){
+  const c = {waiting: 0, sent: 0, delivered: 0, read: 0, replied: 0, failed: 0, opted: 0};
+  const rank = {sent: 1, delivered: 2, read: 3, replied: 4, opted: 3};
+  for (const t of R.targets) {
+    if (t.st === 'waiting') c.waiting++; else if (t.st === 'failed') { c.failed++; c.sent++; }
+    else { const k = rank[t.st]; c.sent++; if (k >= 2) c.delivered++; if (k >= 3) c.read++; if (t.st === 'replied') c.replied++; if (t.st === 'opted') c.opted++; }
+  }
+  return c;
+}
+function renderRun(){
+  const R = CF.run, box = $('#runBox');
+  if (!R) { box.innerHTML = '<div class="empty">Start a campaign to watch it go out.</div>'; $('#runPill').innerHTML = ''; return; }
+  const c = runCounts(R), total = R.targets.length, hot = R.feed.filter(f => f.seg && f.seg.seg === 'Hot').length;
+  const label = {running: ['Sending', 'Warm'], limit: ['Daily limit reached', 'Nurture'], paused: ['Paused', 'Nurture'], done: ['Completed', 'Hot']}[R.state];
+  $('#runPill').innerHTML = `<span class="pill ${label[1]}">${label[0]}</span>`;
+  box.innerHTML = `<div><b>${esc(R.name)}</b> <span class="muted" style="font-size:12.5px">· ${esc(R.tpl)} · ${total.toLocaleString('en-IN')} people · day ${R.day}</span></div>
+    <div class="bar" style="height:10px"><i style="width:${(c.sent/total*100).toFixed(1)}%"></i></div>
+    ${R.state === 'limit' ? `<div class="camp-note">Today's limit of ${R.limit.toLocaleString('en-IN')} people is used. The rest go out tomorrow from 9 AM, automatically.</div>` : ''}
+    <div class="cstats">${[['Waiting', c.waiting], ['Sent', c.sent], ['Delivered', c.delivered], ['Read', c.read], ['Replied', c.replied], ['Opted out', c.opted], ['Failed', c.failed]].map(([k, v]) => `<div class="cstat"><span>${k}</span><b>${v.toLocaleString('en-IN')}</b></div>`).join('')}</div>
+    <div class="scen">${R.state === 'limit' ? '<button class="btn" type="button" data-run="next">Jump to next day</button>' : ''}${R.state === 'running' ? '<button class="btn ghost" type="button" data-run="pause">Pause</button>' : ''}${R.state === 'paused' ? '<button class="btn" type="button" data-run="resume">Resume</button>' : ''}<button class="btn ghost" type="button" data-run="reset">${R.state === 'done' ? 'New campaign' : 'Cancel'}</button>${c.replied ? '<a class="btn ghost" href="#manager" style="text-decoration:none">See replies in Lead manager</a>' : ''}</div>
+    <div><div class="label" style="margin-bottom:6px">Replies · ${hot} new hot lead${hot === 1 ? '' : 's'}</div>
+    <ul class="feed">${R.feed.slice(0, 30).map(f => `<li><b>${esc(f.t.name)}</b><span class="muted">“${esc(f.msg)}”</span>${f.seg ? `<span class="pill ${f.seg.seg}">${f.seg.seg} ${f.seg.score}</span>` : ''}<span class="muted" style="font-size:12px;flex-basis:100%">${esc(f.out)}</span></li>`).join('') || '<li class="muted">Replies appear here as people read the message.</li>'}</ul></div>`;
+}
+$('#runBox').addEventListener('click', e => {
+  const a = e.target.closest('[data-run]'); if (!a || !CF.run) return;
+  const R = CF.run;
+  if (a.dataset.run === 'next') { R.day++; R.sentToday = 0; R.state = 'running'; }
+  if (a.dataset.run === 'pause') R.state = 'paused';
+  if (a.dataset.run === 'resume') R.state = R.sentToday >= R.limit ? 'limit' : 'running';
+  if (a.dataset.run === 'reset') { clearInterval(CF.timer); CF.run = null; }
+  if (CF.run && CF.run.state !== 'done' && a.dataset.run !== 'pause') { clearInterval(CF.timer); CF.timer = setInterval(stepCampaign, 140); }
+  renderRun();
+});
+$$('[data-aud]').forEach(b => b.addEventListener('click', () => { CF.aud = b.dataset.aud; renderAudience(); }));
+$('#campSeg').addEventListener('change', renderAudience);
+$('#campTpl').innerHTML = TEMPLATES.map((t, i) => `<option value="${i}">${t.name} · Marketing · Approved</option>`).join('');
+$('#campTpl').addEventListener('change', renderTemplate);
+$('#varGrid').addEventListener('input', () => { CF.prep = null; $('#campCheckOut').hidden = true; renderPreview(); });
+$('#campFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const t = await readTable(f), H = t.headers.map(h => h.toLowerCase()), map = detectMap(t.headers);
+    const col = re => H.findIndex(h => re.test(h));
+    const pi = map.phone[0], ni = map.name[0], li = col(/locality|area|location/), ci = col(/city/), bi = col(/bhk|config/);
+    if (pi == null) throw new Error('No phone column found. Name a column "Mobile" or "Phone".');
+    CF.uploaded = t.data.map(r => ({name: ni != null ? String(r[ni] || '').trim() : '', raw: String(r[pi] ?? ''), phone: normPhone(r[pi]),
+      locality: li >= 0 ? String(r[li] || '').trim() : '', city: ci >= 0 ? String(r[ci] || '').trim() : '', bhk: bi >= 0 ? String(r[bi] || '').trim() : ''}));
+    CF.uploadName = f.name; CF.aud = 'upload'; renderAudience(); toast(`${CF.uploaded.length} contacts loaded from ${f.name}`);
+  } catch (err) { toast(err.message || 'Could not read that file.'); }
+});
+
+/* ---------- routing ---------- */
+const VIEWS = ['console','manager','campaigns','leads','briefing','how'];
+function route(){
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'console';
+  VIEWS.forEach(x => { $('#v-'+x).hidden = x !== v; });
+  $$('nav.tabs a').forEach(a => { if (a.dataset.view === v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+}
+window.addEventListener('hashchange', () => { route(); window.scrollTo(0,0); });
+route();
+loadScenario('hot');
+{ const t = sampleRows(); processTable(t, detectMap(t.headers), 'Sample: 500 leads'); }
+renderROI();
+renderTemplate(); renderAudience();
+})();
+</script>
+
+</html>

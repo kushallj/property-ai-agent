@@ -2,6 +2,7 @@
 
 > **India edition:** this branch adapts the backend for Indian brokers (lakhs/crores, BHK, RERA,
 > Hinglish, WhatsApp, lead scoring, broker approval). See [backend/README_INDIA.md](backend/README_INDIA.md).
+> Pitch demo (no backend): [demo/](demo/README.md), live at https://property-demo-rho.vercel.app
 > The sections below describe the original US version.
 >
 > [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kushallj/property-ai-agent)
