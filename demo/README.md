@@ -19,3 +19,16 @@ Type the client's firm name in the "Demo for" box before a meeting.
 
 **Deploy to Vercel:** from this folder run `npx vercel deploy --prod`, or import the repo in Vercel and set the
 root directory to `demo` (no build step).
+
+## Live backend mode
+
+Click **Connect live backend** in the header, keep the URL (`https://property-ai-agent-rzte.onrender.com`) and paste
+`ADMIN_API_KEY` from Render → Environment. The key stays in that browser tab only. Then:
+
+- **Live agent** sends messages to the real AI agent (`POST /chat`) and shows its requirement, score, matches and approval requests.
+- **Lead manager → Load leads from live backend** pulls the backend's leads into the manager.
+- **Campaigns** creates and runs real campaigns on the backend. For safety only an uploaded CSV or leads loaded from
+  the backend can be used; the sample contacts have made-up numbers and are never sent.
+
+Live mode works on the Vercel copy only; the claude.ai preview can't call outside servers. The backend must list the
+page's address in `CORS_ORIGINS`.

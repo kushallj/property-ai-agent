@@ -299,6 +299,9 @@ td .raw{font-size:11.5px;color:var(--muted);margin-top:3px}
 .tpl-tag{font-size:11px;color:var(--muted);margin-bottom:4px;display:block}
 .pv{background:var(--chat-bg);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:6px;min-height:150px}
 .camp-note{font-size:12.5px;padding:8px 10px;border-radius:8px;background:var(--accent-soft);color:var(--accent-ink)}
+.camp-note.ok{background:var(--ok-soft);color:var(--ok)}
+.camp-note.bad{background:var(--hot-soft);color:var(--hot)}
+.sample.live{background:var(--ok-soft);color:var(--ok)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -312,7 +315,8 @@ td .raw{font-size:11.5px;color:var(--muted);margin-top:3px}
       <label class="firm" for="firmName">Demo for
         <input id="firmName" value="Apna Ghar Realty" autocomplete="off">
       </label>
-      <span class="sample">Sample data</span>
+      <span class="sample" id="modePill">Sample data</span>
+      <button class="btn ghost" id="liveBtn" type="button" style="padding:6px 12px;font-size:13px">Connect live backend</button>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#console" data-view="console">Live agent</a>
@@ -324,6 +328,18 @@ td .raw{font-size:11.5px;color:var(--muted);margin-top:3px}
     </nav>
   </div>
 </header>
+
+<div class="backdrop" id="liveBack" hidden></div>
+<div class="panel modal" id="liveModal" hidden role="dialog" aria-label="Connect live backend">
+  <div class="panel-h"><h3>Connect the live backend</h3><button class="x" type="button" id="liveClose" aria-label="Close">×</button></div>
+  <form class="panel-b" id="liveForm" style="display:grid;gap:12px">
+    <p class="muted" style="margin:0;font-size:13px">Switches the Live agent chat, Lead manager and Campaigns from simulation to your real server. The admin key stays in this browser tab only and is forgotten when the tab closes. Don't share your screen while typing it.</p>
+    <label class="field">Backend URL<input id="liveUrl" value="https://property-ai-agent-rzte.onrender.com" autocomplete="off"></label>
+    <label class="field">Admin key (ADMIN_API_KEY in Render → Environment)<input id="liveKey" type="password" autocomplete="off"></label>
+    <div class="scen"><button class="btn" type="submit" id="liveGo">Connect</button><button class="btn ghost" type="button" id="liveOff">Use simulation</button></div>
+    <div id="liveMsg" hidden></div>
+  </form>
+</div>
 
 <main class="wrap">
   <!-- LIVE AGENT -->
@@ -414,6 +430,7 @@ td .raw{font-size:11.5px;color:var(--muted);margin-top:3px}
         <p>Load the lead sheet the firm already has, exported from portals, ad forms or the office Excel. The agent cleans it, merges duplicates, reads each requirement, checks it against your inventory and ranks who to call today. Files stay in this browser and are never uploaded.</p>
       </div>
       <div class="scen">
+        <button class="btn ghost" id="mgrLive" type="button" hidden>Load leads from live backend</button>
         <button class="btn ghost" id="mgrSample">Reload 500 sample leads</button>
         <label class="btn accent filebtn" for="mgrFile">Upload lead sheet</label>
         <input type="file" id="mgrFile" accept=".csv,.xlsx,.xls" hidden>
@@ -1099,6 +1116,13 @@ function renderProps(){
 }
 function renderAppt(){
   const el = $('#apptBox'), L = S.lead;
+  if (LIVE.on && (S.liveCode || S.liveDecided)) {
+    el.innerHTML = S.liveCode
+      ? `<div class="appt"><h4>Waiting for your approval · code ${esc(S.liveCode)}</h4><div class="muted" style="font-size:12.5px;white-space:pre-wrap">${esc(S.liveSummary || '')}</div>
+         <div class="acts"><button class="btn" id="approveBtn">Approve and confirm</button><button class="btn ghost" id="altBtn">Decline</button></div></div>`
+      : `<div class="appt done"><h4>${esc(S.liveDecided)}</h4><div class="muted" style="font-size:12.5px">Recorded on the live backend.</div></div>`;
+    return;
+  }
   if (S.stage === 'pending') {
     el.innerHTML = `<div class="appt"><h4>${L.mode==='video'?'Video walkthrough':'Site visit'} · ${esc(fmtSlot(S.chosen))}</h4>
       <div class="muted" style="font-size:12.5px">${esc(L.name||'Website visitor')} · ${esc(S.matches.slice(0,2).map(p=>p.name).join(', '))}<br>Score ${S.score.total} (${S.score.band}) · ${esc(critLine(L))}</div>
@@ -1112,6 +1136,8 @@ function renderAppt(){
 function renderAll(){ renderCrit(); renderTrace(); renderScore(); renderProps(); renderAppt(); renderLeads(); renderBriefing(); }
 
 document.addEventListener('click', async e => {
+  if (e.target.id === 'approveBtn' && LIVE.on && S.liveCode) return liveDecide(true);
+  if (e.target.id === 'altBtn' && LIVE.on && S.liveCode) return liveDecide(false);
   if (e.target.id === 'approveBtn') {
     S.stage = 'booked';
     addTrace('broker_approval','Approved by broker (1 tap)');
@@ -1139,6 +1165,7 @@ document.addEventListener('click', async e => {
 let busy = false;
 async function send(text, forced){
   if (!text.trim() || busy) return;
+  if (LIVE.on) return liveSend(text);
   busy = true; const my = runId;
   addBubble('lead', {text});
   const out = agentTurn(text, forced);
@@ -1156,13 +1183,13 @@ $('#composer').addEventListener('submit', e => { e.preventDefault(); const v = $
 
 /* ---------- scenarios ---------- */
 function loadScenario(k){
-  runId++; busy = false; scenKey = k; S = freshState();
+  runId++; busy = false; scenKey = k; S = freshState(); LIVE.thread = null;
   const sc = SCEN[k];
   $$('[data-scen]').forEach(b => b.setAttribute('aria-pressed', b.dataset.scen===k));
   $('#leadName').textContent = sc.name; $('#leadPhone').textContent = sc.phone; $('#leadSrc').textContent = sc.src;
   $('#leadAvatar').textContent = sc.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   msgsEl.innerHTML = '<div class="day">Today</div>';
-  addSys(`New lead from ${sc.src}. Agent replies automatically.`);
+  addSys(LIVE.on ? `Connected to the live backend. Messages go to the real AI agent.` : `New lead from ${sc.src}. Agent replies automatically.`);
   $('#playBtn').disabled = false; $('#playBtn').textContent = 'Play scenario';
   renderAll();
 }
@@ -1710,6 +1737,8 @@ function renderAudience(){
   $('#audInfo').textContent = CF.aud === 'manager' ? 'Uses the leads scored in the Lead manager tab. Dead leads and wrong numbers are left out.'
     : CF.aud === 'sample' ? 'A sample export of 1,000 contacts, with the duplicates and bad numbers real lists have.'
     : CF.uploadName ? `From ${CF.uploadName}. The file stays in this browser.` : '';
+  if (LIVE.on && !liveAudienceOk()) $('#audInfo').textContent += ' Live backend: sample contacts are not sent; upload a CSV or load live leads in the Lead manager.';
+  else if (LIVE.on && CF.aud === 'upload') $('#audInfo').textContent = `From ${CF.uploadName}. Sent to the live backend when you check the list.`;
   CF.prep = null; $('#campCheckOut').hidden = true; renderPreview();
 }
 function prepare(){
@@ -1726,6 +1755,7 @@ function prepare(){
   return {targets, counts};
 }
 $('#campCheck').addEventListener('click', () => {
+  if (LIVE.on) return liveCampaignCheck();
   if (CF.run && CF.run.state !== 'done') return toast('A campaign is running. Reset it first to start another.');
   CF.prep = prepare(); const c = CF.prep.counts, limit = +$('#campLimit').value;
   const days = Math.max(1, Math.ceil(c.receive / limit));
@@ -1834,6 +1864,163 @@ $('#campFile').addEventListener('change', async e => {
   } catch (err) { toast(err.message || 'Could not read that file.'); }
 });
 
+/* ---------- live backend ---------- */
+const LIVE = {on: false, url: '', key: '', thread: null};
+async function liveApi(path, opts = {}) {
+  let r;
+  try { r = await fetch(LIVE.url.replace(/\/+$/, '') + path, {...opts, headers: {'Content-Type': 'application/json', 'X-API-Key': LIVE.key}}); }
+  catch (e) { throw new Error("Couldn't reach the server. On claude.ai this copy can't call outside servers: open https://property-demo-rho.vercel.app instead. Otherwise check the URL; a server that was idle can take up to a minute to wake."); }
+  let data = {}; try { data = await r.json(); } catch (e) {}
+  if (r.status === 401) throw new Error('The admin key is wrong. Copy ADMIN_API_KEY again from Render → Environment.');
+  if (!r.ok) throw new Error(data.detail || `The server answered ${r.status}.`);
+  return data;
+}
+function setLiveUI(){
+  $('#modePill').textContent = LIVE.on ? 'Live backend' : 'Sample data';
+  $('#modePill').classList.toggle('live', LIVE.on);
+  $('#liveBtn').textContent = LIVE.on ? 'Live: connected' : 'Connect live backend';
+  $('#mgrLive').hidden = !LIVE.on;
+  renderAudience();
+}
+function liveModal(open){ $('#liveModal').hidden = !open; $('#liveBack').hidden = !open; if (open) { $('#liveMsg').hidden = true; ($('#liveKey').value ? $('#liveGo') : $('#liveKey')).focus(); } }
+async function liveConnect(url, key, quiet){
+  const msg = $('#liveMsg');
+  LIVE.url = url; LIVE.key = key;
+  try {
+    const info = await liveApi('/campaigns');
+    LIVE.on = true;
+    try { sessionStorage.setItem('bm-live', JSON.stringify({url, key})); } catch (e) {}
+    setLiveUI(); loadScenario(scenKey); renderRun();
+    if (!quiet) { msg.hidden = false; msg.className = 'camp-note ok'; msg.textContent = `Connected. Daily limit ${info.daily_limit} people, sending ${info.sending_hours}.`; setTimeout(() => liveModal(false), 1200); }
+  } catch (e) {
+    LIVE.on = false; setLiveUI();
+    if (!quiet) { msg.hidden = false; msg.className = 'camp-note bad'; msg.textContent = e.message; }
+  }
+}
+$('#liveBtn').addEventListener('click', () => liveModal(true));
+$('#liveClose').addEventListener('click', () => liveModal(false));
+$('#liveBack').addEventListener('click', () => liveModal(false));
+$('#liveForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const url = $('#liveUrl').value.trim(), key = $('#liveKey').value.trim(), msg = $('#liveMsg');
+  if (!/^https?:\/\//.test(url) || !key) { msg.hidden = false; msg.className = 'camp-note bad'; msg.textContent = 'Enter the backend URL (starting with https://) and the admin key.'; return; }
+  msg.hidden = false; msg.className = 'camp-note'; msg.textContent = 'Connecting… (an idle server can take up to a minute to wake)';
+  liveConnect(url, key, false);
+});
+$('#liveOff').addEventListener('click', () => {
+  LIVE.on = false; LIVE.key = ''; $('#liveKey').value = '';
+  try { sessionStorage.removeItem('bm-live'); } catch (e) {}
+  clearInterval(CF.liveTimer); CF.liveId = null;
+  setLiveUI(); loadScenario(scenKey); renderRun(); liveModal(false); toast('Back to simulation.');
+});
+
+/* live chat */
+function applyLive(res){
+  const c = res.criteria || {}, lead = res.lead || {}, L = S.lead;
+  Object.assign(L, {city: c.city || null, locality: c.locality || null, bhk: c.bhk || null, bmin: c.min_price || null, bmax: c.max_price || null,
+    rtm: c.ready_to_move ?? null, timeline: lead.timeline || (lead.timeline_months ? lead.timeline_months + ' months' : null),
+    finance: lead.financing === 'ready' ? 'Ready (loan sanctioned / own funds)' : lead.financing === 'needs_loan' ? 'Needs home loan' : null,
+    purpose: lead.purpose === 'investment' ? 'Investment' : lead.purpose === 'self_use' ? 'Self use' : null,
+    nri: !!lead.nri, lang: lead.language === 'hinglish' ? 'hi' : 'en'});
+  L.replies++;
+  if (res.lead_score && res.lead_score.total != null)
+    S.score = {total: res.lead_score.total, band: res.lead_score.band, f: (res.lead_score.factors || []).map(x => ({k: x.factor, v: x.points, max: x.max, note: x.reason}))};
+  S.matches = (res.matches || []).map(m => ({id: m.listing_id, name: m.project, area: m.locality, city: m.city, bhk: m.bhk, sqft: m.carpet_sqft, price: m.price_inr,
+    rtm: !!m.ready_to_move, poss: m.ready_to_move ? 'Ready to move' : 'Possession ' + m.possession, note: m.highlight || '', am: [], builder: m.builder || '', rera: m.rera_id || ''}));
+  S.nearOnly = false;
+  if (res.approval_code) { S.liveCode = res.approval_code; S.liveSummary = res.approval_summary; S.liveDecided = null; S.stage = 'pending'; }
+}
+async function liveSend(text){
+  busy = true; const my = runId, t0 = performance.now();
+  addBubble('lead', {text}); typing(true);
+  if (!LIVE.thread) LIVE.thread = 'demo-' + Date.now().toString(36);
+  const sc = SCEN[scenKey];
+  S.trace.push({node: 'channel.demo', det: 'Sent to the live backend (POST /chat)', ms: 0, cls: 'in'});
+  try {
+    const res = await liveApi('/chat', {method: 'POST', body: JSON.stringify({thread_id: LIVE.thread, message: text, name: sc.name === 'Website visitor' ? null : sc.name, source: sc.src})});
+    if (my !== runId) return;
+    typing(false); applyLive(res);
+    S.trace.push({node: 'live agent', det: res.approval_code ? 'Booking paused for broker approval' : (res.matches || []).length ? `${res.matches.length} listings matched` : 'Replied', ms: Math.round(performance.now() - t0), cls: res.approval_code ? 'pause' : ''});
+    if (res.lead_score && res.lead_score.total != null) S.trace.push({node: 'lead_scorer', det: `Score ${res.lead_score.total} · ${res.lead_score.band}`, ms: 0, cls: 'score'});
+    if (res.reply) addBubble('agent', {text: res.reply});
+    if (res.approval_code) addSys(`Approval request ${res.approval_code} sent to the broker.`);
+  } catch (e) {
+    if (my !== runId) return;
+    typing(false); addSys('Live backend: ' + e.message);
+    S.trace.push({node: 'live backend', det: e.message, ms: Math.round(performance.now() - t0), cls: 'pause'});
+  }
+  renderAll(); busy = false;
+}
+async function liveDecide(approve){
+  const code = S.liveCode; if (!code) return;
+  try {
+    const res = await liveApi(`/approvals/${code}`, {method: 'POST', body: JSON.stringify({approve, reason: approve ? '' : 'Advisor not available at that time'})});
+    S.liveCode = null; S.liveDecided = approve ? 'Approved · booking confirmed' : 'Declined · customer offered other times';
+    S.stage = approve ? 'booked' : 'slot_offered';
+    S.trace.push({node: 'broker_approval', det: approve ? 'Approved by broker (1 tap)' : 'Declined by broker', ms: 0});
+    if (res.reply) addBubble('agent', {text: res.reply});
+  } catch (e) { toast('Live backend: ' + e.message); }
+  renderAll();
+}
+
+/* live leads */
+$('#mgrLive').addEventListener('click', async () => {
+  try {
+    const leads = await liveApi('/leads');
+    if (!leads.length) return toast('No leads on the live backend yet. Chat in the Live agent tab first.');
+    const headers = ['Name', 'Mobile', 'Requirement', 'Budget', 'Source', 'Last Contacted', 'Remarks'];
+    const data = leads.map(l => [l.name || 'Unnamed lead', l.phone || '', [l.bhk && l.bhk + 'BHK', l.locality, l.city].filter(Boolean).join(' '),
+      l.max_price ? `${inr(l.min_price || l.max_price * .75)} to ${inr(l.max_price)}` : '', l.source || 'Live backend',
+      l.updated_at ? new Date(l.updated_at) : '', [l.band && `agent score ${l.score} (${l.band})`, l.timeline && `timeline ${l.timeline}`].filter(Boolean).join('; ')]);
+    M.nextId = 1; processTable({headers, data}, detectMap(headers), `Live backend: ${leads.length} leads`);
+    toast(`Loaded ${leads.length} leads from the live backend`);
+  } catch (e) { toast('Live backend: ' + e.message); }
+});
+
+/* live campaigns */
+function liveAudienceOk(){ return CF.aud === 'upload' || (CF.aud === 'manager' && M.label.startsWith('Live')); }
+async function liveCampaignCheck(){
+  const out = $('#campCheckOut'); out.hidden = false;
+  if (!liveAudienceOk()) {
+    out.innerHTML = '<div class="camp-note bad">Sample contacts use made-up phone numbers that could belong to real people, so they are never sent to the live backend. Upload your own contact CSV, or load leads from the live backend in the Lead manager tab.</div>';
+    return;
+  }
+  const list = audience();
+  if (!list.length) { out.innerHTML = '<div class="camp-note bad">This audience has no contacts.</div>'; return; }
+  const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = ['name,phone,locality,city,bhk'].concat(list.map(c => [c.name, c.raw || c.phone || '', c.locality, c.city, c.bhk].map(q).join(','))).join('\n');
+  out.innerHTML = '<div class="muted">Checking the list on the live backend…</div>';
+  try {
+    const res = await liveApi('/campaigns', {method: 'POST', body: JSON.stringify({name: $('#campName').value.trim() || 'Campaign', template_name: curTemplate().name,
+      language: 'en', params: curVars(), csv, source_file: CF.aud === 'upload' ? CF.uploadName : 'Lead manager (live)'})});
+    const c = res.counts; CF.liveId = res.id;
+    out.innerHTML = `<div class="cstats">${[['Contacts', c.rows], ['Will receive', c.queued], ['Duplicates', c.duplicates], ['Bad numbers', c.invalid_phone], ['Opted out', c.opted_out], ['Missing values', c.missing_values]].map(([k, v]) => `<div class="cstat"><span>${k}</span><b>${v.toLocaleString('en-IN')}</b></div>`).join('')}</div>
+      <div class="camp-note">Saved on the live backend as draft #${res.id}. Messages go out 9 AM to 9 PM IST within the daily limit. Until a WhatsApp number is connected, sending is simulated and nobody receives anything.</div>
+      <div class="scen"><button class="btn accent" type="button" id="liveStart" ${c.queued ? '' : 'disabled'}>Start campaign</button><button class="btn ghost" type="button" id="liveDiscard">Discard draft</button></div>`;
+    $('#liveStart').onclick = async () => { try { await liveApi(`/campaigns/${CF.liveId}/start`, {method: 'POST'}); out.hidden = true; clearInterval(CF.liveTimer); CF.liveTimer = setInterval(livePoll, 3000); livePoll(); } catch (e) { toast(e.message); } };
+    $('#liveDiscard').onclick = async () => { try { await liveApi(`/campaigns/${CF.liveId}/cancel`, {method: 'POST'}); } catch (e) {} out.hidden = true; CF.liveId = null; };
+  } catch (e) { out.innerHTML = `<div class="camp-note bad">${esc(e.message)}</div>`; }
+}
+async function livePoll(){
+  if (!CF.liveId || !LIVE.on) return;
+  try {
+    const c = await liveApi(`/campaigns/${CF.liveId}`), s = c.stats, base = Math.max(1, s.total - s.skipped - s.opted_out);
+    const pill = {running: ['Sending', 'Warm'], paused: ['Paused', 'Nurture'], completed: ['Completed', 'Hot'], cancelled: ['Cancelled', 'Dead'], draft: ['Draft', 'New']}[c.status] || [c.status, 'New'];
+    $('#runPill').innerHTML = `<span class="pill ${pill[1]}">${pill[0]} · live</span>`;
+    $('#runBox').innerHTML = `<div><b>${esc(c.name)}</b> <span class="muted" style="font-size:12.5px">· ${esc(c.template_name)} · ${s.total.toLocaleString('en-IN')} people · campaign #${c.id} on the live backend</span></div>
+      <div class="bar" style="height:10px"><i style="width:${Math.min(100, s.sent / base * 100).toFixed(1)}%"></i></div>
+      ${c.note ? `<div class="camp-note">${esc(c.note)}</div>` : ''}
+      <div class="cstats">${[['Waiting', s.queued], ['Sent', s.sent], ['Delivered', s.delivered], ['Read', s.read], ['Replied', s.replied], ['Opted out', s.opted_out], ['Failed', s.failed]].map(([k, v]) => `<div class="cstat"><span>${k}</span><b>${v.toLocaleString('en-IN')}</b></div>`).join('')}</div>
+      <div class="muted" style="font-size:12.5px">Delivered, read and replied fill in from WhatsApp receipts once a WhatsApp number is connected.</div>
+      <div class="scen">${c.status === 'running' ? '<button class="btn ghost" type="button" data-live="pause">Pause</button>' : ''}${c.status === 'paused' ? '<button class="btn" type="button" data-live="resume">Resume</button>' : ''}${['running', 'paused'].includes(c.status) ? '<button class="btn ghost" type="button" data-live="cancel">Cancel</button>' : ''}</div>`;
+    if (['completed', 'cancelled'].includes(c.status)) clearInterval(CF.liveTimer);
+  } catch (e) { $('#runPill').innerHTML = '<span class="pill Dead">Connection lost</span>'; }
+}
+$('#runBox').addEventListener('click', e => {
+  const b = e.target.closest('[data-live]'); if (!b || !CF.liveId) return;
+  liveApi(`/campaigns/${CF.liveId}/${b.dataset.live}`, {method: 'POST'}).then(livePoll).catch(err => toast(err.message));
+});
+
 /* ---------- routing ---------- */
 const VIEWS = ['console','manager','campaigns','leads','briefing','how'];
 function route(){
@@ -1847,6 +2034,7 @@ loadScenario('hot');
 { const t = sampleRows(); processTable(t, detectMap(t.headers), 'Sample: 500 leads'); }
 renderROI();
 renderTemplate(); renderAudience();
+try { const saved = JSON.parse(sessionStorage.getItem('bm-live') || 'null'); if (saved && saved.url && saved.key) { $('#liveUrl').value = saved.url; $('#liveKey').value = saved.key; liveConnect(saved.url, saved.key, true); } } catch (e) {}
 })();
 </script>
 
