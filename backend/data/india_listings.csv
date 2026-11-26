@@ -1,0 +1,35 @@
+listing_id,project,builder,locality,city,state,bhk,carpet_sqft,price_inr,ready_to_move,possession,rera_id,amenities,highlight
+BLR-101,Aurum Greens,Kaveri Developers,Whitefield,Bengaluru,Karnataka,3,1340,16200000,1,Ready to move,KA/RERA/PRJ/1400/SAMPLE,"Clubhouse; Pool; 2 covered parking",7 min to ITPL
+BLR-102,Lakeview Residency,Nandi Infra,Whitefield,Bengaluru,Karnataka,3,1255,14900000,0,Jun 2027,KA/RERA/PRJ/1437/SAMPLE,"Gym; Kids play area; 1 covered parking",Near Kadugodi metro
+BLR-103,Palm Court,Kaveri Developers,Whitefield (Varthur Road),Bengaluru,Karnataka,3,1410,17800000,1,Ready to move,KA/RERA/PRJ/1474/SAMPLE,"Clubhouse; Tennis court; 2 covered parking","Corner unit, east facing"
+BLR-104,Sarjapur Heights,Nandi Infra,Sarjapur Road,Bengaluru,Karnataka,2,1050,9500000,0,Mar 2027,KA/RERA/PRJ/1511/SAMPLE,"Pool; Gym",Near Wipro SEZ
+BLR-105,Hebbal Lakefront,Deccan Estates,Hebbal,Bengaluru,Karnataka,3,1520,24500000,1,Ready to move,KA/RERA/PRJ/1548/SAMPLE,"Clubhouse; Pool; Concierge","Lake view, 20 min to airport"
+BLR-106,Ecity Nest,Deccan Estates,Electronic City,Bengaluru,Karnataka,2,920,6800000,1,Ready to move,KA/RERA/PRJ/1585/SAMPLE,"Gym; Power backup",Walk to tech campuses
+BLR-107,Whitefield Grove,Nandi Infra,Whitefield,Bengaluru,Karnataka,2,980,10400000,1,Ready to move,KA/RERA/PRJ/1622/SAMPLE,"Gym; Pool",Next to Hope Farm junction
+BLR-108,Sarjapur Meadows,Kaveri Developers,Sarjapur Road,Bengaluru,Karnataka,3,1380,13800000,1,Ready to move,KA/RERA/PRJ/1659/SAMPLE,"Clubhouse; Pool; Jogging track",Good schools within 2 km
+PUN-201,Sahyadri Skyline,Sahyadri Homes,Hinjewadi Phase 1,Pune,Maharashtra,2,760,7200000,1,Ready to move,MH/RERA/PRJ/1696/SAMPLE,"Pool; Gym; Co-working lounge","Rents at Rs 24k/month, about 4% yield"
+PUN-202,Baner Crest,Sahyadri Homes,Baner,Pune,Maharashtra,3,1180,14500000,1,Ready to move,MH/RERA/PRJ/1733/SAMPLE,"Clubhouse; Pool","Hill view, top floor"
+PUN-203,Wakad Central,Konkan Realty,Wakad,Pune,Maharashtra,2,715,7650000,0,Dec 2026,MH/RERA/PRJ/1770/SAMPLE,"Gym; Jogging track",Expected rent Rs 22k/month
+PUN-204,Kharadi One,Konkan Realty,Kharadi,Pune,Maharashtra,2,810,8900000,1,Ready to move,MH/RERA/PRJ/1807/SAMPLE,"Pool; Gym",Near EON IT Park
+PUN-205,Baner Vista,Konkan Realty,Baner,Pune,Maharashtra,2,820,10200000,1,Ready to move,MH/RERA/PRJ/1844/SAMPLE,"Gym; Garden",Close to Balewadi High Street
+PUN-206,Hinjewadi Horizon,Sahyadri Homes,Hinjewadi Phase 2,Pune,Maharashtra,1,480,4600000,1,Ready to move,MH/RERA/PRJ/1881/SAMPLE,"Gym; Power backup","Popular with IT rentals, Rs 16k/month"
+MUM-301,Thane Riverside,Konkan Realty,Thane West,Mumbai,Maharashtra,2,690,11500000,1,Ready to move,MH/RERA/PRJ/1918/SAMPLE,"Clubhouse; Gym",5 min to Eastern Express Highway
+MUM-302,Powai Vista,Deccan Estates,Powai,Mumbai,Maharashtra,2,780,24000000,1,Ready to move,MH/RERA/PRJ/1955/SAMPLE,"Pool; Concierge",Lake facing
+MUM-303,Kharghar Meadows,Konkan Realty,"Kharghar, Navi Mumbai",Mumbai,Maharashtra,2,720,10500000,0,Sep 2027,MH/RERA/PRJ/1992/SAMPLE,"Gym; Garden",Near upcoming metro line
+MUM-304,Thane Greens,Konkan Realty,Thane West,Mumbai,Maharashtra,1,450,6900000,1,Ready to move,MH/RERA/PRJ/2029/SAMPLE,"Gym; Garden",10 min walk to station
+MUM-305,Andheri Heights,Deccan Estates,Andheri East,Mumbai,Maharashtra,2,650,19500000,1,Ready to move,MH/RERA/PRJ/2066/SAMPLE,"Gym; Rooftop lounge",Walk to metro and airport road
+HYD-401,Gachibowli Towers,Deccan Estates,Gachibowli,Hyderabad,Telangana,3,1650,18500000,1,Ready to move,TS/RERA/PRJ/2103/SAMPLE,"Clubhouse; Pool; 2 covered parking",10 min to Financial District
+HYD-402,Kondapur Greens,Deccan Estates,Kondapur,Hyderabad,Telangana,2,1150,9800000,1,Ready to move,TS/RERA/PRJ/2140/SAMPLE,"Pool; Gym","Gated community, 12 acres"
+HYD-403,Kokapet Heights,Deccan Estates,Kokapet,Hyderabad,Telangana,3,1720,21500000,0,Dec 2027,TS/RERA/PRJ/2177/SAMPLE,"Clubhouse; Pool",Neopolis corridor
+HYD-404,Miyapur Residency,Deccan Estates,Miyapur,Hyderabad,Telangana,2,1050,7200000,1,Ready to move,TS/RERA/PRJ/2214/SAMPLE,"Gym; Kids play area",Next to metro terminal
+NOI-501,Yamuna Vista,Yamuna Buildcon,Sector 150,Noida,Uttar Pradesh,3,1450,16000000,0,Oct 2027,UP/RERA/PRJ/2251/SAMPLE,"Golf range; Pool","Sports city, low density"
+NOI-502,Expressway Homes,Yamuna Buildcon,Sector 137,Noida,Uttar Pradesh,2,980,7400000,1,Ready to move,UP/RERA/PRJ/2288/SAMPLE,"Gym; Power backup",Next to metro station
+NOI-503,Skyline Avenue,Yamuna Buildcon,Noida Extension,Noida,Uttar Pradesh,2,1020,5900000,1,Ready to move,UP/RERA/PRJ/2325/SAMPLE,"Clubhouse; Kids play area",Good schools nearby
+NOI-504,Noida Central Park,Yamuna Buildcon,Sector 75,Noida,Uttar Pradesh,3,1300,11200000,1,Ready to move,UP/RERA/PRJ/2362/SAMPLE,"Clubhouse; Pool",Walk to Sector 76 metro
+GGN-601,Aravali Crest,Aravali Group,Sector 65,Gurugram,Haryana,3,1800,32000000,0,Mar 2027,HR/RERA/PRJ/2399/SAMPLE,"Clubhouse; Pool; Concierge",Golf Course Extension Road
+GGN-602,Dwarka Gateway,Aravali Group,Sector 106,Gurugram,Haryana,2,1100,13500000,1,Ready to move,HR/RERA/PRJ/2436/SAMPLE,"Pool; Gym","Dwarka Expressway, 15 min to airport"
+GGN-603,Sohna Hills,Aravali Group,Sohna Road,Gurugram,Haryana,2,1000,9200000,1,Ready to move,HR/RERA/PRJ/2473/SAMPLE,"Clubhouse; Garden",Hill views
+CHN-701,OMR Bayview,Coromandel Homes,OMR (Thoraipakkam),Chennai,Tamil Nadu,2,950,8400000,1,Ready to move,TN/RERA/PRJ/2510/SAMPLE,"Pool; Gym",Near IT corridor
+CHN-702,Anna Nagar Residency,Coromandel Homes,Anna Nagar,Chennai,Tamil Nadu,3,1400,22000000,1,Ready to move,TN/RERA/PRJ/2547/SAMPLE,"Clubhouse; Concierge",Prime residential area
+AMD-801,Sabarmati Heights,Narmada Infra,SG Highway,Ahmedabad,Gujarat,3,1500,9500000,1,Ready to move,GJ/RERA/PRJ/2584/SAMPLE,"Clubhouse; Pool",Close to GIFT City road
+AMD-802,Prahlad Nagar Square,Narmada Infra,Prahlad Nagar,Ahmedabad,Gujarat,2,1050,6800000,0,Jun 2027,GJ/RERA/PRJ/2621/SAMPLE,"Gym; Garden",Central location

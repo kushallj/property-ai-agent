@@ -33,3 +33,9 @@
 # typescript
 *.tsbuildinfo
 /frontend/next-env.d.ts
+
+# India adaptation
+/backend/data/*.db
+/backend/.venv
+.pytest_cache
+/backend/data/memory

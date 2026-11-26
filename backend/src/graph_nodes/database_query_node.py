@@ -1,63 +1,37 @@
-import sqlite3
-import os
-from langchain_core.messages import AIMessage
-
+from src.util.create_node import ack_tool_calls
+from src.util.db import search_listings
+from src.util.india import emi, format_inr
 from src.util.state import State
 
 
-def process_criteria(criteria_key, criteria_value, query, params):
-    query += f" AND {criteria_key} = ?"
-    params.append(criteria_value)
-    return (query, params)
+def describe(m: dict) -> str:
+    status = "Ready to move" if m["ready_to_move"] else f"Possession {m['possession']}"
+    per_sqft = round(m["price_inr"] / m["carpet_sqft"])
+    return (f"{m['listing_id']} | {m['project']} by {m['builder']}, {m['locality']}, {m['city']} | {m['bhk']}BHK, "
+            f"{m['carpet_sqft']} sq ft carpet | {format_inr(m['price_inr'])} (₹{per_sqft:,}/sq ft, EMI about "
+            f"{format_inr(emi(m['price_inr']))}/month on 80% loan) | {status} | RERA {m['rera_id']} | "
+            f"{m['amenities']} | {m['highlight']}")
 
-def query_database(state: State):
-    search_criteria = state["search_criteria"]
-    # print("search criteria from state", search_criteria)
 
-    db_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "real_estate_data.db")
+def query_database(state: State) -> dict:
+    crit = state.get("search_criteria") or {}
+    lead = state.get("lead") or {}
+    last = state["messages"][-1]
 
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    missing = [k for k, ok in [("location", crit.get("city")), ("BHK", crit.get("bhk")), ("budget", crit.get("max_price"))] if not ok]
+    if missing:
+        return {
+            "matches": state.get("matches") or [],
+            "messages": ack_tool_calls(last, f"Details saved. Before searching, ask the customer for: {missing[0]} (one question only)."),
+        }
 
-    query = "SELECT * FROM real_estate WHERE 1 = 1"
-    params = []
-
-    # Define valid criteria keys and their corresponding SQL column names
-    valid_criteria = {
-        "city": "city",
-        "state": "state",
-        "min_bedroom": "bed",
-        "min_bathroom": "bath",
-        "max_price": "price",
-        "min_price": "price",
-    }
-
-    for key, value in search_criteria.items():
-        if value is not None:
-            sql_column = valid_criteria.get(key)
-            if sql_column:
-                if key in ["min_bedroom", "min_bathroom"]:
-                    query += f" AND {sql_column} >= ?"
-                elif key in ["max_price", "min_price"]:
-                    operator = "<=" if "max" in key else ">="
-                    query += f" AND {sql_column} {operator} ?"
-                else:
-                    query += f" AND {sql_column} = ?"
-                params.append(value)
-            else:
-                # Handle unexpected criteria keys
-                print(f"Unexpected criteria key: {key}")
-
-    query += " LIMIT 2"
-    
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
-    column_names = [column[0] for column in cursor.description]
-    results = [dict(zip(column_names, row)) for row in rows]
-
-    cursor.close()
-    conn.close()
-
-    return {"messages": [AIMessage(content=f"Here are the search results: {results}")]}
-
-    return {}
+    matches, note = search_listings(crit)
+    if not matches:
+        result = "No listings match yet. Tell the customer we will message them as soon as something fits, and ask if they are flexible on locality or budget."
+    else:
+        result = "Matching listings" + (f" ({note})" if note else "") + ":\n" + "\n".join(describe(m) for m in matches)
+        if not (lead.get("timeline_months") or lead.get("timeline")):
+            result += "\nAfter sharing these, ask when they plan to buy or move in."
+        else:
+            result += "\nShare these briefly, then offer a site visit (video walkthrough for NRI customers)."
+    return {"matches": matches, "match_note": note, "messages": ack_tool_calls(last, result)}

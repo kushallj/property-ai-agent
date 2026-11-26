@@ -1,5 +1,9 @@
 # Realtor AI Assistant
 
+> **India edition:** this branch adapts the backend for Indian brokers (lakhs/crores, BHK, RERA,
+> Hinglish, WhatsApp, lead scoring, broker approval). See [backend/README_INDIA.md](backend/README_INDIA.md).
+> The sections below describe the original US version.
+
 Realtor AI Assistant is a full-stack LangGraph real estate agent with a Python
 backend and a React chat widget. It coordinates lead intake, property-search
 criteria, database lookup, Google Calendar scheduling, and chat, SMS, and voice
