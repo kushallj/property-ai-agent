@@ -160,9 +160,9 @@ def test_reply_to_campaign_reaches_agent_with_campaign_as_source(monkeypatch):
     TestClient(server.app).post("/webhook", json=wa_message("919800004521", "Interested", "m3"))
     assert campaigns.stats(cid)["replied"] == 1
     assert ("919800004521", "Great to hear, Rohan! Shall I share 3 options in Whitefield?") in notify.sent_log
-    state = server._graph.get_state({"configurable": {"thread_id": "wa-919800004521"}}).values
+    state = server._graph.get_state({"configurable": {"thread_id": "default:wa-919800004521"}}).values
     assert state["lead"]["source"] == "Campaign: Dec launch"
-    assert "Replied to the 'Dec launch' WhatsApp campaign" in [n["text"] for n in memory.read_notes("wa-919800004521")]
+    assert "Replied to the 'Dec launch' WhatsApp campaign" in [n["text"] for n in memory.read_notes("default:wa-919800004521")]
 
 
 # ---------- REST API ----------

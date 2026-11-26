@@ -4,7 +4,6 @@ from langgraph.prebuilt import ToolNode
 
 from src.util import memory
 from src.util.india import format_inr, now_ist
-from src.util.llm import assistant_name, firm_name
 from src.util.state import State
 
 
@@ -75,12 +74,14 @@ class Assistant:
         self.runnable = runnable
 
     def __call__(self, state: State, config: RunnableConfig):
+        from src.tenancy import from_config
+        tenant = from_config(config)
         inputs = {
             **state,
             "time": now_ist().strftime("%A %d %B %Y, %I:%M %p IST"),
             "lead_context": lead_context(state, config.get("configurable", {}).get("thread_id")),
-            "firm_name": firm_name(),
-            "assistant_name": assistant_name(),
+            "firm_name": tenant.name,
+            "assistant_name": tenant.assistant_name or "Riya",
         }
         result = None
         for _ in range(3):

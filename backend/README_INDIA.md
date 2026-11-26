@@ -37,6 +37,44 @@ customer message
 Score rubric: Timeline 25 · Budget fit 20 · Financing 15 · Buying intent 20 · Contact info 10 · Engagement 10.
 Hot ≥ 75, Warm 50–74, Cold < 50. Edit `src/util/lead_scoring.py` to tune it for a client.
 
+## Many brokers on one server
+
+One deployment serves every broker you sell to. Each broker has their own firm name, assistant name,
+WhatsApp number, inventory, leads, campaigns, opt-out list, daily sending limit and AI reply allowance, and
+an API key that only ever sees their own data. Hosting is paid once and shared.
+
+**Who holds which key**
+- **You (platform owner):** `ADMIN_API_KEY`. Manages brokers at `/platform`, and can act for any broker by
+  adding the header `X-Tenant: <broker id>` (without it you act as the `default` broker).
+- **Each broker:** their own key (`bm_<id>_…`), created when you add them. They paste it at `/admin`
+  (campaign dashboard) or in the demo's "Connect live backend". It can't see other brokers or manage anything.
+
+**Add a broker (2 minutes):** open `https://<your-server>/platform`, paste `ADMIN_API_KEY`, fill in the firm
+name, the broker's own WhatsApp number (for hot-lead alerts and visit approvals) and their plan limits, then
+**Add broker**. Copy the key shown (it is shown once) and send it to them privately. Tick "Start with sample
+listings" for a trial, or have them upload their inventory: `POST /listings {"csv": "..."}` with the columns of
+`data/india_listings.csv`.
+
+**Connect their WhatsApp:** add their Phone number ID (and WhatsApp Business Account ID) on the broker row.
+Incoming messages are routed to the right broker by the business number they were sent to. If all numbers sit
+under your own Meta app (Meta Tech Provider), one platform `WHATSAPP_TOKEN` and `WHATSAPP_APP_SECRET` serve
+everyone; if a broker uses their own Meta app, store their token and app secret on their row.
+
+**Protecting your margin**
+- `ai_monthly_limit` (default 300 on new brokers): once a broker uses their AI replies for the month, customers
+  get a polite "our team will get back to you" and the broker is alerted; no AI call is made.
+- Usage per broker (AI replies, campaign messages) is shown on `/platform` and at `GET /me` for billing.
+- Campaign messages are sent from the broker's own WhatsApp account, so Meta bills them, not you.
+- **Pause** a broker who stops paying: their key and WhatsApp number stop working until you activate them.
+  **New key** replaces a leaked key at once.
+
+**Platform API** (needs `ADMIN_API_KEY`): `GET|POST /platform/tenants`, `GET|POST /platform/tenants/{id}`,
+`POST /platform/tenants/{id}/rotate-key|pause|activate`. **Broker API** (broker key): everything below, plus
+`GET /me`, `GET|POST /listings`.
+
+The broker that existed before this change is `default`: its settings still come from the environment
+(`FIRM_NAME`, `WHATSAPP_*`, `BROKER_WHATSAPP`), and its data was kept as is.
+
 ## WhatsApp campaigns
 
 Send an approved WhatsApp template to a contact list, and let the AI agent handle every reply.

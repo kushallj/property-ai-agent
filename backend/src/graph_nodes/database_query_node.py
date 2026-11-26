@@ -1,3 +1,5 @@
+from langchain_core.runnables import RunnableConfig
+
 from src.util.create_node import ack_tool_calls
 from src.util.db import search_listings
 from src.util.india import emi, format_inr
@@ -13,7 +15,8 @@ def describe(m: dict) -> str:
             f"{m['amenities']} | {m['highlight']}")
 
 
-def query_database(state: State) -> dict:
+def query_database(state: State, config: RunnableConfig) -> dict:
+    tenant_id = (config.get("configurable") or {}).get("tenant") or "default"
     crit = state.get("search_criteria") or {}
     lead = state.get("lead") or {}
     last = state["messages"][-1]
@@ -25,7 +28,7 @@ def query_database(state: State) -> dict:
             "messages": ack_tool_calls(last, f"Details saved. Before searching, ask the customer for: {missing[0]} (one question only)."),
         }
 
-    matches, note = search_listings(crit)
+    matches, note = search_listings(crit, tenant_id=tenant_id)
     if not matches:
         result = "No listings match yet. Tell the customer we will message them as soon as something fits, and ask if they are flexible on locality or budget."
     else:

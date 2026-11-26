@@ -45,7 +45,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
   <div class="card" id="keyCard">
     <div class="row">
-      <label for="key">Admin key (ADMIN_API_KEY from your hosting settings)<input id="key" type="password" autocomplete="off"></label>
+      <label for="key">Your API key (from your provider)<input id="key" type="password" autocomplete="off"></label>
       <button id="connect">Connect</button>
     </div>
     <div id="keyMsg" class="msg bad" hidden></div>
@@ -108,7 +108,7 @@ $('#connect').onclick = async () => {
 
 async function loadAll() {
   const data = await api('/campaigns');
-  $('#limits').textContent = `Daily limit ${data.daily_limit} people · sending ${data.sending_hours}`;
+  $('#limits').textContent = `${data.firm || ''} · Daily limit ${data.daily_limit} people · sending ${data.sending_hours}`;
   renderList(data.campaigns);
   try { templates = (await api('/whatsapp/templates')).filter(t => t.status === 'APPROVED'); } catch (e) { templates = []; }
   const sel = $('#cTemplate');

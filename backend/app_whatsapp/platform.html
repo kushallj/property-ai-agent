@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Broker Platform</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#17223a;--muted:#5f6a7c;--line:#e0e5ec;--brand:#0e5e5a;--brand-soft:#e2f1ef;--warn:#b86e0b;--warn-soft:#fcf0dc;--bad:#c23d28;--bad-soft:#fbe6e2;--ok:#1c8556;--ok-soft:#e0f3ea}
+@media (prefers-color-scheme:dark){:root{--bg:#0e131a;--card:#161d26;--ink:#e6ebf2;--muted:#98a3b5;--line:#27313d;--brand:#47b8af;--brand-soft:#173634;--warn:#f0a743;--warn-soft:#3a2b14;--bad:#f0715b;--bad-soft:#3d1f1a;--ok:#4cc48c;--ok-soft:#14322a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1150px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:16px}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+label{display:grid;gap:4px;font-size:12px;color:var(--muted);flex:1;min-width:170px}
+label.check{display:flex;align-items:center;gap:6px;flex:none;min-width:0;font-size:13px;color:var(--ink)}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+label.check input{width:auto}
+button{font:inherit;font-weight:600;border:0;border-radius:8px;padding:8px 14px;background:var(--brand);color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.small{padding:4px 10px;font-size:12px}
+.muted{color:var(--muted)}.small{font-size:12px}
+details summary{cursor:pointer;color:var(--brand);font-weight:600;font-size:13px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px}
+th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--ok-soft);color:var(--ok)}
+.pill.paused{background:var(--warn-soft);color:var(--warn)}.pill.off{background:var(--bg);color:var(--muted)}
+.bar{height:6px;background:var(--bg);border:1px solid var(--line);border-radius:99px;overflow:hidden;margin-top:4px;width:110px}.bar i{display:block;height:100%;background:var(--brand)}
+.bar.full i{background:var(--bad)}
+.msg{padding:10px 12px;border-radius:8px;font-size:13px;background:var(--warn-soft);color:var(--warn)}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}.msg.bad{background:var(--bad-soft);color:var(--bad)}
+.key{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--bg);border:1px dashed var(--brand);border-radius:8px;padding:10px;word-break:break-all}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between;align-items:center"><h1>Broker Platform</h1><span class="muted small" id="totals"></span></div>
+
+  <div class="card" id="keyCard">
+    <div class="row">
+      <label for="key">Platform key (ADMIN_API_KEY from your hosting settings)<input id="key" type="password" autocomplete="off"></label>
+      <button id="connect">Connect</button>
+    </div>
+    <div id="keyMsg" class="msg bad" hidden></div>
+  </div>
+
+  <div id="app" hidden style="display:grid;gap:16px">
+    <div class="card">
+      <h2>Add a broker</h2>
+      <div class="row">
+        <label for="fName">Firm name<input id="fName" placeholder="Sharma Properties"></label>
+        <label for="fAssistant">Assistant name<input id="fAssistant" value="Riya"></label>
+        <label for="fBroker">Broker's own WhatsApp (gets alerts and approves visits)<input id="fBroker" placeholder="+91 98xxxxxxxx"></label>
+      </div>
+      <div class="row">
+        <label for="fAi">AI replies per month (plan limit)<input id="fAi" type="number" min="0" value="300"></label>
+        <label for="fDaily">Campaign messages per day (their WhatsApp limit)<input id="fDaily" type="number" min="0" value="250"></label>
+        <label class="check" for="fSample"><input id="fSample" type="checkbox"> Start with sample listings (for a trial)</label>
+      </div>
+      <details>
+        <summary>WhatsApp connection (can be added later)</summary>
+        <div class="row" style="margin-top:10px">
+          <label for="fPid">Phone number ID<input id="fPid" placeholder="from WhatsApp Manager → API setup"></label>
+          <label for="fWaba">WhatsApp Business Account ID<input id="fWaba"></label>
+        </div>
+        <div class="row">
+          <label for="fToken">Access token (leave empty to use the platform token)<input id="fToken" type="password" autocomplete="off"></label>
+          <label for="fSecret">App secret (only if they use their own Meta app)<input id="fSecret" type="password" autocomplete="off"></label>
+        </div>
+      </details>
+      <div><button id="create">Add broker</button></div>
+      <div id="createOut" hidden></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center"><h2>Brokers</h2><button class="ghost small" id="refresh">Refresh</button></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Broker</th><th>Status</th><th>WhatsApp</th><th>AI replies this month</th><th>Campaign msgs</th><th>Leads</th><th>Listings</th><th>Actions</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <div id="rowMsg" hidden></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let KEY = sessionStorage.getItem('platformKey') || '';
+$('#key').value = KEY;
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {'Content-Type': 'application/json', 'X-API-Key': KEY}});
+  let d = {}; try { d = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(d.detail || ('Error ' + r.status));
+  return d;
+}
+function keyBox(title, key) {
+  return `<div class="msg ok">${esc(title)}</div><div class="key" id="newKey">${esc(key)}</div>
+    <div class="row"><button class="ghost small" type="button" onclick="navigator.clipboard.writeText(document.getElementById('newKey').textContent).then(()=>this.textContent='Copied')">Copy key</button>
+    <span class="muted small">Send it to the broker privately. It is shown only now. They paste it at <b>${esc(location.origin)}/admin</b> or in the demo's "Connect live backend".</span></div>`;
+}
+
+$('#connect').onclick = async () => {
+  KEY = $('#key').value.trim(); sessionStorage.setItem('platformKey', KEY);
+  try { await load(); $('#keyMsg').hidden = true; $('#app').hidden = false; }
+  catch (e) { $('#keyMsg').textContent = e.message; $('#keyMsg').hidden = false; }
+};
+
+async function load() {
+  const list = await api('/platform/tenants');
+  const active = list.filter(t => t.status === 'active').length;
+  const ai = list.reduce((a, t) => a + t.usage_this_month.ai_turns, 0);
+  $('#totals').textContent = `${list.length} brokers · ${active} active · ${ai} AI replies this month`;
+  $('#rows').innerHTML = list.map(t => {
+    const used = t.usage_this_month.ai_turns, lim = t.ai_monthly_limit || 0, pct = lim ? Math.min(100, used / lim * 100) : 0;
+    return `<tr><td><b>${esc(t.name)}</b><div class="muted small">${esc(t.id)}${t.broker_whatsapp ? ' · ' + esc(t.broker_whatsapp) : ''}</div></td>
+      <td><span class="pill ${t.status === 'paused' ? 'paused' : ''}">${esc(t.status)}</span></td>
+      <td>${t.whatsapp_connected ? '<span class="pill">connected</span>' : '<span class="pill off">not yet</span>'}</td>
+      <td>${used}${lim ? ' / ' + lim : ' (no limit)'}${lim ? `<div class="bar ${pct >= 100 ? 'full' : ''}"><i style="width:${pct}%"></i></div>` : ''}</td>
+      <td>${t.usage_this_month.template_messages}</td><td>${t.leads}</td><td>${t.listings}</td>
+      <td><div class="actions">
+        <button class="ghost small" data-act="limit" data-id="${esc(t.id)}" data-lim="${lim}">Change AI limit</button>
+        ${t.id !== 'default' ? `<button class="ghost small" data-act="${t.status === 'active' ? 'pause' : 'activate'}" data-id="${esc(t.id)}">${t.status === 'active' ? 'Pause' : 'Activate'}</button>
+        <button class="ghost small" data-act="rotate" data-id="${esc(t.id)}">New key</button>` : '<span class="muted small">uses the platform key</span>'}
+      </div></td></tr>`;
+  }).join('');
+}
+
+$('#create').onclick = async () => {
+  const out = $('#createOut'); out.hidden = false;
+  const name = $('#fName').value.trim();
+  if (!name) { out.innerHTML = '<div class="msg bad">Enter the firm name.</div>'; return; }
+  const body = {name, assistant_name: $('#fAssistant').value.trim() || 'Riya', broker_whatsapp: $('#fBroker').value.trim() || null,
+    ai_monthly_limit: +$('#fAi').value || null, daily_limit: +$('#fDaily').value || null, sample_listings: $('#fSample').checked,
+    whatsapp_phone_number_id: $('#fPid').value.trim() || null, whatsapp_business_account_id: $('#fWaba').value.trim() || null,
+    whatsapp_token: $('#fToken').value.trim() || null, whatsapp_app_secret: $('#fSecret').value.trim() || null};
+  try {
+    const t = await api('/platform/tenants', {method: 'POST', body: JSON.stringify(body)});
+    out.innerHTML = keyBox(`${t.name} added (id ${t.id}). Their API key:`, t.api_key);
+    ['#fName', '#fBroker', '#fPid', '#fWaba', '#fToken', '#fSecret'].forEach(s => $(s).value = '');
+    load();
+  } catch (e) { out.innerHTML = `<div class="msg bad">${esc(e.message)}</div>`; }
+};
+
+$('#rows').onclick = async e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const id = b.dataset.id, msg = $('#rowMsg'); msg.hidden = false;
+  try {
+    if (b.dataset.act === 'rotate') {
+      if (!confirm(`Issue a new key for ${id}? Their current key stops working immediately.`)) { msg.hidden = true; return; }
+      const r = await api(`/platform/tenants/${id}/rotate-key`, {method: 'POST'});
+      msg.innerHTML = keyBox(`New key for ${id}:`, r.api_key);
+    } else if (b.dataset.act === 'limit') {
+      const v = prompt(`AI replies per month for ${id} (0 = no limit):`, b.dataset.lim);
+      if (v === null) { msg.hidden = true; return; }
+      await api(`/platform/tenants/${id}`, {method: 'POST', body: JSON.stringify({ai_monthly_limit: Math.max(0, parseInt(v) || 0)})});
+      msg.innerHTML = '<div class="msg ok">Limit updated.</div>';
+    } else {
+      await api(`/platform/tenants/${id}/${b.dataset.act}`, {method: 'POST'});
+      msg.innerHTML = `<div class="msg ok">${id} ${b.dataset.act === 'pause' ? 'paused: their key and WhatsApp number stop working until you activate them.' : 'is active again.'}</div>`;
+    }
+    load();
+  } catch (err) { msg.innerHTML = `<div class="msg bad">${esc(err.message)}</div>`; }
+};
+$('#refresh').onclick = load;
+if (KEY) $('#connect').click();
+</script>
+</body>
+</html>

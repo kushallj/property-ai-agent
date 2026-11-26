@@ -16,8 +16,8 @@ class TurnResult:
     lead_score: dict = field(default_factory=dict)
 
 
-def config_for(thread_id: str) -> dict:
-    return {"configurable": {"thread_id": thread_id}}
+def config_for(thread_id: str, tenant: str = db.DEFAULT_TENANT) -> dict:
+    return {"configurable": {"thread_id": thread_id, "tenant": tenant}}
 
 
 def _result(graph, cfg: dict, start: int) -> TurnResult:
@@ -31,8 +31,8 @@ def _result(graph, cfg: dict, start: int) -> TurnResult:
     return TurnResult(reply=reply, pending=pending, lead_score=snap.values.get("lead_score") or {})
 
 
-def run_turn(graph, thread_id: str, text: str, lead: Optional[dict] = None) -> TurnResult:
-    cfg = config_for(thread_id)
+def run_turn(graph, thread_id: str, text: str, lead: Optional[dict] = None, tenant: str = db.DEFAULT_TENANT) -> TurnResult:
+    cfg = config_for(thread_id, tenant)
     snap = graph.get_state(cfg)
     if snap.next:  # a booking is still waiting for the broker; don't start a new run over it
         return TurnResult(reply="", pending=list(snap.values["messages"][-1].tool_calls))
@@ -44,8 +44,8 @@ def run_turn(graph, thread_id: str, text: str, lead: Optional[dict] = None) -> T
     return _result(graph, cfg, start)
 
 
-def resume(graph, thread_id: str, approve: bool, reason: str = "") -> TurnResult:
-    cfg = config_for(thread_id)
+def resume(graph, thread_id: str, approve: bool, reason: str = "", tenant: str = db.DEFAULT_TENANT) -> TurnResult:
+    cfg = config_for(thread_id, tenant)
     snap = graph.get_state(cfg)
     if not snap.next:
         return TurnResult(reply="")
@@ -62,7 +62,7 @@ def resume(graph, thread_id: str, approve: bool, reason: str = "") -> TurnResult
     return _result(graph, cfg, start)
 
 
-def describe_pending(tool_calls: list[dict], state_values: Optional[dict] = None) -> str:
+def describe_pending(tool_calls: list[dict], state_values: Optional[dict] = None, tenant: str = db.DEFAULT_TENANT) -> str:
     """Readable summary of what the broker is being asked to approve."""
     lead = (state_values or {}).get("lead") or {}
     score = (state_values or {}).get("lead_score") or {}
@@ -70,7 +70,7 @@ def describe_pending(tool_calls: list[dict], state_values: Optional[dict] = None
     for tc in tool_calls:
         a = tc["args"]
         if tc["name"] == "book_site_visit":
-            listing = db.get_listing(str(a.get("listing_id", "")).upper()) or {}
+            listing = db.get_listing(str(a.get("listing_id", "")).upper(), tenant) or db.get_listing(str(a.get("listing_id", "")), tenant) or {}
             when = a.get("start_time_ist", "?")
             try:
                 when = fmt_ist(parse_ist(when))

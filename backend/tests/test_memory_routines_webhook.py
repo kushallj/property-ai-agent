@@ -53,8 +53,8 @@ def test_agent_saves_and_later_reads_memory():
 
 def test_broker_can_add_notes_over_api():
     client = TestClient(server.app)
-    assert client.post("/leads/wa-1/notes", json={"note": "Prefers calls after 7 pm"}).json() == {"added": ["Prefers calls after 7 pm"]}
-    assert client.get("/leads/wa-1/notes").json()[0]["by"] == "broker"
+    assert client.post("/leads/default:wa-1/notes", json={"note": "Prefers calls after 7 pm"}).json() == {"added": ["Prefers calls after 7 pm"]}
+    assert client.get("/leads/default:wa-1/notes").json()[0]["by"] == "broker"
 
 
 # ---------- 2. routines ----------
@@ -69,7 +69,7 @@ def seed_leads():
 
 def test_quiet_day_sends_nothing():
     results = run_due(datetime(2026, 12, 8, 8, 40, tzinfo=IST))
-    assert results == [{"routine": "morning_briefing", "period": "2026-12-08", "items": 0, "summary": "nothing to do"}]
+    assert results == [{"tenant": "default", "routine": "morning_briefing", "period": "2026-12-08", "items": 0, "summary": "nothing to do"}]
     assert notify.sent_log == []
 
 
@@ -89,7 +89,7 @@ def test_visit_reminder_sent_once_evening_before():
                               listing_id="BLR-101", start_ist="2026-12-08T11:00:00+05:30", duration_min=45, mode="site")
     assert run_due(datetime(2026, 12, 7, 17, 0, tzinfo=IST)) == []  # before the 18:00 window
     res = run_due(MONDAY_EVENING)
-    assert {"routine": "visit_reminders", "period": "2026-12-07 18", "items": 1, "summary": "1 reminder(s) sent"} in res
+    assert {"tenant": "default", "routine": "visit_reminders", "period": "2026-12-07 18", "items": 1, "summary": "1 reminder(s) sent"} in res
     msg = sent_to("+919800004521")[0]
     assert "Aurum Greens" in msg and "tomorrow" in msg and "Reply 1 to confirm" in msg
     assert db.get_appointment(appt)["reminded_at"]

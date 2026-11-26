@@ -33,9 +33,12 @@ import time
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
+from src.tenancy import Tenant, get as get_tenant
 from src.util import db
 from src.util.india import now_ist
 from src.util.notify import send_template
+
+DEFAULT = db.DEFAULT_TENANT
 
 logger = logging.getLogger(__name__)
 
@@ -48,17 +51,20 @@ STATUS_RANK = {"queued": 0, "sent": 1, "delivered": 2, "read": 3, "replied": 4}
 MAX_ATTEMPTS = 5
 
 
-def daily_limit() -> int:
-    return int(os.getenv("WHATSAPP_DAILY_LIMIT", "250"))
+def _t(tenant_id: str) -> Tenant:
+    return get_tenant(tenant_id) or get_tenant(DEFAULT)
+
+
+def daily_limit(tenant_id: str = DEFAULT) -> int:
+    return _t(tenant_id).limit_per_day()
 
 
 def rate_per_sec() -> float:
     return max(0.2, float(os.getenv("CAMPAIGN_RATE_PER_SEC", "10")))
 
 
-def sending_hours() -> tuple[int, int]:
-    start, end = os.getenv("CAMPAIGN_HOURS", "9-21").split("-")
-    return int(start), int(end)
+def sending_hours(tenant_id: str = DEFAULT) -> tuple[int, int]:
+    return _t(tenant_id).hours()
 
 
 # ---------- contacts ----------
@@ -126,31 +132,32 @@ def render_params(params: list[str], name: str, data: dict) -> list[str]:
 
 
 # ---------- opt-outs ----------
-def is_opted_out(phone: str) -> bool:
+def is_opted_out(phone: str, tenant_id: str = DEFAULT) -> bool:
     with db.connect() as conn:
-        return conn.execute("SELECT 1 FROM opt_outs WHERE phone = ?", (phone,)).fetchone() is not None
+        return conn.execute("SELECT 1 FROM tenant_opt_outs WHERE tenant_id = ? AND phone = ?", (tenant_id, phone)).fetchone() is not None
 
 
-def opt_out(phone: str, reason: str = "replied STOP") -> None:
+def opt_out(phone: str, reason: str = "replied STOP", tenant_id: str = DEFAULT) -> None:
     now = now_ist().isoformat(timespec="seconds")
     with db.connect() as conn:
-        conn.execute("INSERT OR REPLACE INTO opt_outs VALUES (?,?,?)", (phone, reason, now))
-        conn.execute("UPDATE campaign_recipients SET status = 'opted_out' WHERE phone = ? AND status = 'queued'", (phone,))
+        conn.execute("INSERT OR REPLACE INTO tenant_opt_outs VALUES (?,?,?,?)", (tenant_id, phone, reason, now))
+        conn.execute("UPDATE campaign_recipients SET status = 'opted_out' WHERE phone = ? AND status = 'queued' "
+                     "AND campaign_id IN (SELECT id FROM campaigns WHERE tenant_id = ?)", (phone, tenant_id))
 
 
-def opt_in(phone: str) -> None:
+def opt_in(phone: str, tenant_id: str = DEFAULT) -> None:
     with db.connect() as conn:
-        conn.execute("DELETE FROM opt_outs WHERE phone = ?", (phone,))
+        conn.execute("DELETE FROM tenant_opt_outs WHERE tenant_id = ? AND phone = ?", (tenant_id, phone))
 
 
-def list_opt_outs() -> list[dict]:
+def list_opt_outs(tenant_id: str = DEFAULT) -> list[dict]:
     with db.connect() as conn:
-        return [dict(r) for r in conn.execute("SELECT * FROM opt_outs ORDER BY created_at DESC")]
+        return [dict(r) for r in conn.execute("SELECT phone, reason, created_at FROM tenant_opt_outs WHERE tenant_id = ? ORDER BY created_at DESC", (tenant_id,))]
 
 
 # ---------- campaigns ----------
 def create_campaign(name: str, template_name: str, language: str, params: list[str], csv_text: str,
-                    header_image_url: Optional[str] = None, source_file: str = "") -> dict:
+                    header_image_url: Optional[str] = None, source_file: str = "", tenant_id: str = DEFAULT) -> dict:
     rows, meta = parse_contacts(csv_text)
     now = now_ist().isoformat(timespec="seconds")
     seen, recipients = set(), []
@@ -167,7 +174,7 @@ def create_campaign(name: str, template_name: str, language: str, params: list[s
             continue
         seen.add(phone)
         status, error, rendered = "queued", None, []
-        if is_opted_out(phone):
+        if is_opted_out(phone, tenant_id):
             status, error = "opted_out", "opted out earlier"
             counts["opted_out"] += 1
         else:
@@ -182,9 +189,9 @@ def create_campaign(name: str, template_name: str, language: str, params: list[s
 
     with db.connect() as conn:
         cur = conn.execute(
-            "INSERT INTO campaigns (name, template_name, language, params_json, header_image_url, status, note, source_file, created_at) "
-            "VALUES (?,?,?,?,?,'draft','',?,?)",
-            (name, template_name, language, json.dumps(params, ensure_ascii=False), header_image_url, source_file, now))
+            "INSERT INTO campaigns (name, template_name, language, params_json, header_image_url, status, note, source_file, created_at, tenant_id) "
+            "VALUES (?,?,?,?,?,'draft','',?,?,?)",
+            (name, template_name, language, json.dumps(params, ensure_ascii=False), header_image_url, source_file, now, tenant_id))
         cid = int(cur.lastrowid)
         conn.executemany(
             "INSERT INTO campaign_recipients (campaign_id, phone, name, data_json, params_json, status, error) VALUES (?,?,?,?,?,?,?)",
@@ -193,10 +200,13 @@ def create_campaign(name: str, template_name: str, language: str, params: list[s
     return {"id": cid, "counts": counts, "columns": meta, "samples": samples, "problems": problems[:20]}
 
 
-def get_campaign(cid: int) -> Optional[dict]:
+def get_campaign(cid: int, tenant_id: Optional[str] = None) -> Optional[dict]:
+    """A campaign by id; with tenant_id, only if it belongs to that broker."""
     with db.connect() as conn:
         row = conn.execute("SELECT * FROM campaigns WHERE id = ?", (cid,)).fetchone()
-    return dict(row) if row else None
+    if not row or (tenant_id and row["tenant_id"] != tenant_id):
+        return None
+    return dict(row)
 
 
 def stats(cid: int) -> dict:
@@ -209,9 +219,9 @@ def stats(cid: int) -> dict:
             "failed": counts.get("failed", 0), "opted_out": counts.get("opted_out", 0), "skipped": counts.get("skipped", 0)}
 
 
-def list_campaigns() -> list[dict]:
+def list_campaigns(tenant_id: str = DEFAULT) -> list[dict]:
     with db.connect() as conn:
-        rows = [dict(r) for r in conn.execute("SELECT * FROM campaigns ORDER BY id DESC")]
+        rows = [dict(r) for r in conn.execute("SELECT * FROM campaigns WHERE tenant_id = ? ORDER BY id DESC", (tenant_id,))]
     for r in rows:
         r["stats"] = stats(r["id"])
     return rows
@@ -226,8 +236,8 @@ def recipients(cid: int, status: Optional[str] = None, limit: int = 2000) -> lis
         return [dict(r) for r in conn.execute(q + " ORDER BY id LIMIT ?", p + [limit])]
 
 
-def set_status(cid: int, status: str, note: str = "") -> dict:
-    c = get_campaign(cid)
+def set_status(cid: int, status: str, note: str = "", tenant_id: Optional[str] = None) -> dict:
+    c = get_campaign(cid, tenant_id)
     if not c:
         raise ValueError(f"No campaign {cid}")
     allowed = {"running": {"draft", "paused"}, "paused": {"running"}, "cancelled": {"draft", "running", "paused"}}
@@ -241,23 +251,28 @@ def set_status(cid: int, status: str, note: str = "") -> dict:
     return get_campaign(cid)
 
 
-def send_test(cid: int, phone_raw: str, sender: Callable = send_template) -> dict:
+def send_test(cid: int, phone_raw: str, sender: Callable = send_template, tenant_id: Optional[str] = None) -> dict:
     """Send the campaign's template to one number (yours) using the first queued person's variables."""
-    c = get_campaign(cid)
+    c = get_campaign(cid, tenant_id)
     phone = normalize_phone(phone_raw)
     if not c or not phone:
         raise ValueError("Unknown campaign or invalid phone number")
     first = recipients(cid, "queued", limit=1)
     params = json.loads(first[0]["params_json"]) if first else []
-    ok, wamid, code, err = sender(phone, c["template_name"], c["language"], params, c["header_image_url"])
+    if sender is send_template:
+        ok, wamid, code, err = send_template(phone, c["template_name"], c["language"], params, c["header_image_url"], tenant=_t(c["tenant_id"]))
+    else:
+        ok, wamid, code, err = sender(phone, c["template_name"], c["language"], params, c["header_image_url"])
     return {"ok": ok, "message_id": wamid, "error_code": code, "error": err, "variables": params}
 
 
 # ---------- the sender ----------
-def _sent_today(now: datetime) -> int:
+def _sent_today(now: datetime, tenant_id: str) -> int:
+    """People messaged today from this broker's number, across all of their campaigns."""
     day = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     with db.connect() as conn:
-        return conn.execute("SELECT COUNT(*) FROM campaign_recipients WHERE sent_at >= ?", (day,)).fetchone()[0]
+        return conn.execute("SELECT COUNT(*) FROM campaign_recipients WHERE sent_at >= ? AND campaign_id IN "
+                            "(SELECT id FROM campaigns WHERE tenant_id = ?)", (day, tenant_id)).fetchone()[0]
 
 
 def _note(cid: int, note: str) -> None:
@@ -267,22 +282,34 @@ def _note(cid: int, note: str) -> None:
 
 def tick(now: Optional[datetime] = None, sender: Callable = send_template, sleep: Callable[[float], None] = time.sleep,
          batch: int = 50) -> int:
-    """Send the next batch for running campaigns. Returns how many messages went out. Safe to call often."""
+    """Send the next batch for running campaigns of every broker. Returns how many went out. Safe to call often.
+
+    Sending hours and the daily limit belong to each broker's own WhatsApp number.
+    """
     now = now or now_ist()
     with db.connect() as conn:
         running = [dict(r) for r in conn.execute("SELECT * FROM campaigns WHERE status = 'running' ORDER BY started_at, id")]
-    if not running:
-        return 0
-    start_h, end_h = sending_hours()
+    by_tenant: dict[str, list[dict]] = {}
+    for c in running:
+        by_tenant.setdefault(c["tenant_id"] or DEFAULT, []).append(c)
+    total = 0
+    for tenant_id, camps in by_tenant.items():
+        total += _tick_tenant(_t(tenant_id), camps, now, sender, sleep, batch)
+    return total
+
+
+def _tick_tenant(t: Tenant, running: list[dict], now: datetime, sender: Callable, sleep: Callable, batch: int) -> int:
+    start_h, end_h = t.hours()
     if not (start_h <= now.hour < end_h):
         for c in running:
             _note(c["id"], f"Waiting for sending hours ({start_h}:00 to {end_h}:00 IST)")
         return 0
-    remaining = daily_limit() - _sent_today(now)
+    remaining = t.limit_per_day() - _sent_today(now, t.id)
     if remaining <= 0:
         for c in running:
-            _note(c["id"], f"Daily limit of {daily_limit()} reached; continues tomorrow at {start_h}:00")
+            _note(c["id"], f"Daily limit of {t.limit_per_day()} reached; continues tomorrow at {start_h}:00")
         return 0
+    send = (lambda *a: send_template(*a, tenant=t)) if sender is send_template else sender
 
     sent_total, pause_s = 0, 1.0 / rate_per_sec()
     for c in running:
@@ -300,13 +327,14 @@ def tick(now: Optional[datetime] = None, sender: Callable = send_template, sleep
             continue
         _note(c["id"], "")
         for r in queue:
-            if is_opted_out(r["phone"]):
+            if is_opted_out(r["phone"], t.id):
                 _update(r["id"], status="opted_out")
                 continue
-            ok, wamid, code, err = sender(r["phone"], c["template_name"], c["language"], json.loads(r["params_json"]), c["header_image_url"])
+            ok, wamid, code, err = send(r["phone"], c["template_name"], c["language"], json.loads(r["params_json"]), c["header_image_url"])
             attempts = (r["attempts"] or 0) + 1
             if ok:
                 _update(r["id"], status="sent", wamid=wamid, sent_at=now.isoformat(timespec="seconds"), attempts=attempts, error=None)
+                db.add_usage(t.id, "template_messages")
                 sent_total += 1
                 remaining -= 1
             elif code in PAUSE_CAMPAIGN:
@@ -368,21 +396,21 @@ def apply_status(status: dict) -> None:
         _update(row["id"], status=st, **({"delivered_at": now} if st == "delivered" else {"read_at": now} if st == "read" else {}))
 
 
-def on_inbound(phone: str, text: str) -> dict:
-    """Check an incoming message for STOP/START and campaign replies. phone: digits, e.g. '919800004521'."""
+def on_inbound(phone: str, text: str, tenant_id: str = DEFAULT) -> dict:
+    """Check an incoming message to one broker for STOP/START and campaign replies. phone: digits, e.g. '919800004521'."""
     t = re.sub(r"[^a-z ]", "", (text or "").lower()).strip()
     if t in STOP_WORDS:
-        opt_out(phone)
+        opt_out(phone, tenant_id=tenant_id)
         return {"action": "opted_out"}
-    if t in START_WORDS and is_opted_out(phone):
-        opt_in(phone)
+    if t in START_WORDS and is_opted_out(phone, tenant_id):
+        opt_in(phone, tenant_id)
         return {"action": "opted_in"}
     since = (now_ist() - timedelta(days=7)).isoformat(timespec="seconds")
     with db.connect() as conn:
         row = conn.execute(
             "SELECT r.id, r.status, c.name FROM campaign_recipients r JOIN campaigns c ON c.id = r.campaign_id "
-            "WHERE r.phone = ? AND r.sent_at >= ? AND r.status IN ('sent','delivered','read','replied') ORDER BY r.sent_at DESC LIMIT 1",
-            (phone, since)).fetchone()
+            "WHERE r.phone = ? AND c.tenant_id = ? AND r.sent_at >= ? AND r.status IN ('sent','delivered','read','replied') "
+            "ORDER BY r.sent_at DESC LIMIT 1", (phone, tenant_id, since)).fetchone()
     if not row:
         return {"action": None}
     if row["status"] != "replied":
