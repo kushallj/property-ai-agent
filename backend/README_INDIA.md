@@ -91,6 +91,32 @@ Export their listings to a CSV with the same columns as `data/india_listings.csv
 (`listing_id, project, builder, locality, city, state, bhk, carpet_sqft, price_inr, ready_to_move, possession, rera_id, amenities, highlight`),
 then run `python -m src.util.db` again. `price_inr` is in rupees (1.62 Cr = 16200000).
 
+## Host it on Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kushallj/property-ai-agent)
+
+The repo has a Render Blueprint (`render.yaml`) and a `backend/Dockerfile`. It creates one web service in
+Singapore with a 1 GB disk at `/var/data` for the database, conversation history and lead memory.
+Expect about $7/month for the Starter instance plus about $0.25/month for the disk. A paid instance is
+needed because free ones sleep, miss WhatsApp messages and routines, and lose their data.
+
+1. Sign in at render.com with GitHub and allow access to `kushallj/property-ai-agent`.
+2. Click the button above (or **New → Blueprint** and pick the repo).
+3. Fill in the secrets Render asks for. Only `OPENAI_API_KEY` is needed to start; leave the WhatsApp ones
+   blank until you connect a number. `ADMIN_API_KEY` and `WHATSAPP_VERIFY_TOKEN` are generated for you.
+4. **Apply**. The first build takes a few minutes. Your URL looks like `https://property-ai-agent.onrender.com`.
+5. Check it: open the URL (shows `{"status":"ok"}`), then copy `ADMIN_API_KEY` from **Environment** and try:
+   ```bash
+   curl -X POST https://<your-url>/chat -H "X-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application/json" \
+     -d "{\"thread_id\":\"test1\",\"message\":\"3BHK in Whitefield around 1.6 Cr\",\"name\":\"Test\"}"
+   ```
+
+Every push to `main` redeploys automatically. Security built in:
+- Every lead, appointment, chat, approval and routine endpoint needs `ADMIN_API_KEY`
+  (`Authorization: Bearer <key>` or `X-API-Key: <key>`). Only `/` (health) and `/webhook` are open.
+- Once `WHATSAPP_TOKEN` is set, `/webhook` refuses anything not signed with `WHATSAPP_APP_SECRET`.
+- Run one instance only: the routine scheduler and conversation locks live in the process.
+
 ## Connect WhatsApp
 
 1. In Meta for Developers, create an app with WhatsApp, and note the phone number ID and a permanent access token.

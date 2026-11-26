@@ -1,0 +1,41 @@
+# Render Blueprint: one-click deploy of the WhatsApp agent backend.
+# Render reads this when you choose New > Blueprint and pick this repository.
+# Values marked "sync: false" are asked for in Render's dashboard during setup; they are never stored in git.
+services:
+  - type: web
+    name: property-ai-agent
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: singapore          # closest Render region to India
+    plan: starter              # persistent disks need a paid instance; free instances sleep and lose data
+    healthCheckPath: /
+    autoDeploy: true           # redeploys on every push to main
+    disk:
+      name: agent-data
+      mountPath: /var/data     # SQLite database, conversation history and lead memory live here
+      sizeGB: 1
+    envVars:
+      - key: LLM_MODEL
+        value: openai:gpt-4o-mini
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ADMIN_API_KEY
+        generateValue: true    # Render creates a random key; copy it from the dashboard to call the API
+      - key: FIRM_NAME
+        value: Apna Ghar Realty
+      - key: ASSISTANT_NAME
+        value: Riya
+      - key: BROKER_WHATSAPP
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        generateValue: true
+      - key: ROUTINES_ENABLED
+        value: "1"

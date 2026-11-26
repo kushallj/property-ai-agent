@@ -23,7 +23,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
 from src.graph import create_graph
@@ -35,8 +35,30 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("whatsapp")
 
+def require_admin(authorization: str = Header(default=""), x_api_key: str = Header(default="")):
+    """Protects every endpoint that reads or changes customer data.
+
+    Send the key as "Authorization: Bearer <ADMIN_API_KEY>" or "X-API-Key: <ADMIN_API_KEY>".
+    Without ADMIN_API_KEY set (local development) the API stays open and a warning is logged at startup.
+    """
+    expected = os.getenv("ADMIN_API_KEY")
+    if not expected:
+        return
+    given = x_api_key or (authorization[7:] if authorization.lower().startswith("bearer ") else "")
+    if not hmac.compare_digest(given.encode(), expected.encode()):
+        raise HTTPException(401, "Missing or wrong API key")
+
+
+protected = APIRouter(dependencies=[Depends(require_admin)])
+
+
 @asynccontextmanager
 async def lifespan(_app):
+    if not os.getenv("ADMIN_API_KEY"):
+        logger.warning("ADMIN_API_KEY is not set: lead and appointment endpoints are open. Set it before going public.")
+    if os.getenv("WHATSAPP_TOKEN") and not os.getenv("WHATSAPP_APP_SECRET"):
+        logger.warning("WHATSAPP_APP_SECRET is not set: incoming webhooks will be refused until it is.")
+    db.ensure_listings()
     stop = None
     if os.getenv("ROUTINES_ENABLED", "1") != "0":
         from src.routines import start_background
@@ -56,8 +78,14 @@ def graph():
     if _graph is None:
         from langgraph.checkpoint.sqlite import SqliteSaver
 
+        try:
+            from src.util.llm import get_llm
+            llm = get_llm()
+        except Exception as exc:
+            logger.error("AI model is not configured: %s", exc)
+            raise HTTPException(503, "The AI model is not configured. Set OPENAI_API_KEY (or LLM_MODEL and that provider's key).")
         conn = sqlite3.connect(os.getenv("CHECKPOINT_DB", "data/checkpoints.db"), check_same_thread=False)
-        _graph = create_graph(checkpointer=SqliteSaver(conn))
+        _graph = create_graph(llm=llm, checkpointer=SqliteSaver(conn))
         db.ensure_listings()
     return _graph
 
@@ -118,6 +146,9 @@ def verify(mode: str = Query(alias="hub.mode", default=""), token: str = Query(a
 async def receive(request: Request, background: BackgroundTasks):
     body = await request.body()
     secret = os.getenv("WHATSAPP_APP_SECRET")
+    if os.getenv("WHATSAPP_TOKEN") and not secret:
+        # With a real WhatsApp number connected, unsigned webhooks could be forged to spend AI credits.
+        raise HTTPException(503, "Set WHATSAPP_APP_SECRET to accept WhatsApp webhooks")
     if secret:
         expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, request.headers.get("X-Hub-Signature-256", "")):
@@ -185,29 +216,29 @@ def health():
     return {"status": "ok", "service": "real-estate-agent-india"}
 
 
-@app.post("/chat")
+@protected.post("/chat")
 def chat(body: ChatIn):
     lead = {k: v for k, v in {"name": body.name, "phone": body.phone, "source": body.source}.items() if v}
     return handle_customer(body.thread_id, body.message, lead, reply_to=None)
 
 
-@app.post("/approvals/{code}")
+@protected.post("/approvals/{code}")
 def decide(code: str, body: DecisionIn):
     return handle_decision(code, body.approve, body.reason)
 
 
-@app.get("/approvals")
+@protected.get("/approvals")
 def approvals():
     with db.connect() as conn:
         return [dict(r) for r in conn.execute("SELECT * FROM approvals ORDER BY created_at DESC")]
 
 
-@app.get("/leads")
+@protected.get("/leads")
 def leads():
     return db.list_leads()
 
 
-@app.get("/appointments")
+@protected.get("/appointments")
 def appointments():
     with db.connect() as conn:
         return [dict(r) for r in conn.execute("SELECT * FROM appointments ORDER BY start_ist")]
@@ -217,26 +248,29 @@ class NoteIn(BaseModel):
     note: str
 
 
-@app.get("/leads/{thread_id}/notes")
+@protected.get("/leads/{thread_id}/notes")
 def lead_notes(thread_id: str):
     return memory.read_notes(thread_id)
 
 
-@app.post("/leads/{thread_id}/notes")
+@protected.post("/leads/{thread_id}/notes")
 def add_lead_note(thread_id: str, body: NoteIn):
     """The broker's own notes ("prefers calls after 7 pm") go into the same memory the agent reads."""
     return {"added": memory.add_notes(thread_id, [body.note], by="broker")}
 
 
-@app.get("/routines")
+@protected.get("/routines")
 def routines_history():
     return db.routine_history()
 
 
-@app.post("/routines/{name}/run")
+@protected.post("/routines/{name}/run")
 def run_routine(name: str):
     """Run one routine now, ignoring its schedule (for demos and testing)."""
     from src.routines import ROUTINES, run_due
     if name not in {r.name for r in ROUTINES}:
         raise HTTPException(404, f"No routine {name}")
     return run_due(force=name)
+
+
+app.include_router(protected)
