@@ -129,6 +129,11 @@ Export their listings to a CSV with the same columns as `data/india_listings.csv
 (`listing_id, project, builder, locality, city, state, bhk, carpet_sqft, price_inr, ready_to_move, possession, rera_id, amenities, highlight`),
 then run `python -m src.util.db` again. `price_inr` is in rupees (1.62 Cr = 16200000).
 
+## Host it on AWS Lightsail
+
+Step-by-step guide with a paste-in launch script: [deploy/lightsail/README.md](../deploy/lightsail/README.md).
+About $12/month in Mumbai, with automatic HTTPS.
+
 ## Host it on Render
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kushallj/property-ai-agent)

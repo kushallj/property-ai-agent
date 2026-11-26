@@ -1,0 +1,5 @@
+# Linux servers need LF line endings in scripts and configs
+*.sh text eol=lf
+Caddyfile text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf

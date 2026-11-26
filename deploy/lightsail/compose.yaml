@@ -1,0 +1,28 @@
+# Backend + Caddy (automatic HTTPS). Started by start.sh, which sets SITE to the server's web address.
+services:
+  app:
+    build: ../../backend
+    env_file: ../../backend/.env
+    volumes:
+      - agent-data:/var/data        # database, conversation history, lead memory
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.8.4
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - SITE=${SITE:?SITE is set by start.sh}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data            # HTTPS certificates
+      - caddy-config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  agent-data:
+  caddy-data:
+  caddy-config:
