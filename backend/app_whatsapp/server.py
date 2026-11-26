@@ -25,6 +25,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -75,6 +76,15 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Real estate AI agent (India)", lifespan=lifespan)
+# Browsers only let a web page call this server from the sites listed here (the pitch demo).
+# Every data endpoint still needs ADMIN_API_KEY; this only lets the browser send the request.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in os.getenv(
+        "CORS_ORIGINS", "https://property-demo-rho.vercel.app,http://localhost:8765").split(",") if o.strip()],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "X-API-Key", "Content-Type"],
+)
 _locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
 _graph = None
 
@@ -111,7 +121,15 @@ def handle_customer(thread_id: str, text: str, lead: dict, reply_to: Optional[st
                 result.reply = "Let me confirm this slot with our advisor. I'll message you here in a few minutes."
         if result.reply and reply_to:
             send_whatsapp(reply_to, result.reply)
-        return {"reply": result.reply, "approval_code": approval_code, "lead_score": result.lead_score}
+        state = graph().get_state(config_for(thread_id)).values
+        return {"reply": result.reply, "approval_code": approval_code, "lead_score": result.lead_score,
+                "approval_summary": (db.get_approval(approval_code) or {}).get("summary") if approval_code else None,
+                "criteria": state.get("search_criteria") or {}, "lead": state.get("lead") or {},
+                "matches": [{k: m.get(k) for k in MATCH_FIELDS} for m in state.get("matches") or []]}
+
+
+MATCH_FIELDS = ("listing_id", "project", "builder", "locality", "city", "bhk", "carpet_sqft", "price_inr",
+                "ready_to_move", "possession", "rera_id", "highlight")
 
 
 def request_approval(thread_id: str) -> str:

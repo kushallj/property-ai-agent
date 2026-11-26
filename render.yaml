@@ -45,3 +45,5 @@ services:
         value: "9-21"
       - key: ROUTINES_ENABLED
         value: "1"
+      - key: CORS_ORIGINS
+        value: https://property-demo-rho.vercel.app   # sites whose pages may call this API (comma-separated)
